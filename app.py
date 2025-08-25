@@ -302,33 +302,33 @@ def create_judge_comparison_chart(datasets, specific_task=None):
         
         data = datasets[task]
         mapping = COLUMN_MAPPINGS[task]
-            averages = calculate_averages(data, mapping['judgeColumns'])
+        averages = calculate_averages(data, mapping['judgeColumns'])
+        
+        # Pad averages with zeros if needed
+        while len(averages) < max_models:
+            averages.append(0)
             
-            # Pad averages with zeros if needed
-            while len(averages) < max_models:
-                averages.append(0)
-            
-            # Colors exactly as in HTML
-            task_colors = {
-                'qa': 'rgba(255, 107, 107, 0.8)',
-                'summary': 'rgba(78, 205, 196, 0.8)',
-                'classification': 'rgba(69, 183, 209, 0.8)'
-            }
-            
-            border_colors = {
-                'qa': '#FF6B6B',
-                'summary': '#4ECDC4',
-                'classification': '#45B7D1'
-            }
-            
-            fig.add_trace(go.Bar(
-                name=task.capitalize(),
-                x=model_labels,
-                y=averages,
-                marker_color=task_colors[task],
-                marker_line_color=border_colors[task],
-                marker_line_width=2
-            ))
+        # Colors exactly as in HTML
+        task_colors = {
+            'qa': 'rgba(255, 107, 107, 0.8)',
+            'summary': 'rgba(78, 205, 196, 0.8)',
+            'classification': 'rgba(69, 183, 209, 0.8)'
+        }
+        
+        border_colors = {
+            'qa': '#FF6B6B',
+            'summary': '#4ECDC4',
+            'classification': '#45B7D1'
+        }
+        
+        fig.add_trace(go.Bar(
+            name=task.capitalize(),
+            x=model_labels,
+            y=averages,
+            marker_color=task_colors[task],
+            marker_line_color=border_colors[task],
+            marker_line_width=2
+        ))
     
     fig.update_layout(
         title="🏆 Judge Scores Comparison (1-5 Scale)",
@@ -380,30 +380,30 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         data = datasets[task]
         mapping = COLUMN_MAPPINGS[task]
         averages = calculate_bert_averages(data, mapping['bertColumns'])
-            
-            # Pad averages with zeros if needed
-            while len(averages) < max_models:
-                averages.append(0)
-            
-            # Colors exactly as in HTML
-            line_colors = {
-                'qa': '#96CEB4',
-                'summary': '#FF9F43',
-                'classification': '#9966FF'
-            }
-            
-            fig.add_trace(go.Scatter(
-                name=task.capitalize(),
-                x=model_labels,
-                y=averages,
-                mode='lines+markers',
-                line=dict(
-                    color=line_colors[task],
-                    width=3
-                ),
-                marker=dict(size=6),
-                fill=False
-            ))
+        
+        # Pad averages with zeros if needed
+        while len(averages) < max_models:
+            averages.append(0)
+        
+        # Colors exactly as in HTML
+        line_colors = {
+            'qa': '#96CEB4',
+            'summary': '#FF9F43',
+            'classification': '#9966FF'
+        }
+        
+        fig.add_trace(go.Scatter(
+            name=task.capitalize(),
+            x=model_labels,
+            y=averages,
+            mode='lines+markers',
+            line=dict(
+                color=line_colors[task],
+                width=3
+            ),
+            marker=dict(size=6),
+            fill=False
+        ))
     
     fig.update_layout(
         title="📊 BERT F1 Scores",
