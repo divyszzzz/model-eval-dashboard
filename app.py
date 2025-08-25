@@ -236,7 +236,7 @@ def calculate_best_overall_model(datasets):
         model_scores[model] = []
     
     for task, data in datasets.items():
-        if not data or len(data) == 0:
+        if data is None or data.empty:
             continue
             
         mapping = COLUMN_MAPPINGS.get(task)
@@ -275,7 +275,7 @@ def create_judge_comparison_chart(datasets, specific_task=None):
     # Determine max models across tasks
     max_models = 0
     for task in tasks_to_process:
-        if datasets[task] is not None and task in COLUMN_MAPPINGS:
+        if datasets[task] is not None and not datasets[task].empty and task in COLUMN_MAPPINGS:
             max_models = max(max_models, len(COLUMN_MAPPINGS[task]['judgeColumns']))
     
     if max_models == 0:
@@ -297,9 +297,11 @@ def create_judge_comparison_chart(datasets, specific_task=None):
         model_labels.append(model_names[model])
     
     for task in tasks_to_process:
-        if datasets[task] is not None and task in COLUMN_MAPPINGS:
-            data = datasets[task]
-            mapping = COLUMN_MAPPINGS[task]
+        if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
+            continue
+        
+        data = datasets[task]
+        mapping = COLUMN_MAPPINGS[task]
             averages = calculate_averages(data, mapping['judgeColumns'])
             
             # Pad averages with zeros if needed
@@ -350,7 +352,7 @@ def create_bert_comparison_chart(datasets, specific_task=None):
     # Determine max models across tasks
     max_models = 0
     for task in tasks_to_process:
-        if datasets[task] is not None and task in COLUMN_MAPPINGS:
+        if datasets[task] is not None and not datasets[task].empty and task in COLUMN_MAPPINGS:
             max_models = max(max_models, len(COLUMN_MAPPINGS[task]['bertColumns']))
     
     if max_models == 0:
@@ -372,10 +374,12 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         model_labels.append(model_names[model])
     
     for task in tasks_to_process:
-        if datasets[task] is not None and task in COLUMN_MAPPINGS:
-            data = datasets[task]
-            mapping = COLUMN_MAPPINGS[task]
-            averages = calculate_bert_averages(data, mapping['bertColumns'])
+        if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
+            continue
+        
+        data = datasets[task]
+        mapping = COLUMN_MAPPINGS[task]
+        averages = calculate_bert_averages(data, mapping['bertColumns'])
             
             # Pad averages with zeros if needed
             while len(averages) < max_models:
@@ -420,9 +424,11 @@ def create_distribution_chart(datasets, specific_task=None):
     all_scores = []
     
     for task in tasks_to_process:
-        if datasets[task] is not None and task in COLUMN_MAPPINGS:
-            data = datasets[task]
-            mapping = COLUMN_MAPPINGS[task]
+        if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
+            continue
+        
+        data = datasets[task]
+        mapping = COLUMN_MAPPINGS[task]
             
             for col in mapping['judgeColumns']:
                 if not col:
@@ -485,9 +491,11 @@ def create_correlation_chart(datasets, specific_task=None):
     tasks_to_process = [specific_task] if specific_task else list(datasets.keys())
     
     for task in tasks_to_process:
-        if datasets[task] is not None and task in COLUMN_MAPPINGS:
-            data = datasets[task]
-            mapping = COLUMN_MAPPINGS[task]
+        if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
+            continue
+        
+        data = datasets[task]
+        mapping = COLUMN_MAPPINGS[task]
             
             for model_index, (judge_col, bert_col) in enumerate(zip(mapping['judgeColumns'], mapping['bertColumns'])):
                 if not judge_col or not bert_col:
@@ -532,7 +540,7 @@ def create_task_comparison_chart(datasets, specific_task=None):
     fig = go.Figure()
     
     tasks_to_process = [specific_task] if specific_task else list(datasets.keys())
-    valid_tasks = [task for task in tasks_to_process if datasets[task] is not None]
+    valid_tasks = [task for task in tasks_to_process if datasets[task] is not None and not datasets[task].empty]
     
     if not valid_tasks:
         return fig
