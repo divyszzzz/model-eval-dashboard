@@ -429,14 +429,14 @@ def create_distribution_chart(datasets, specific_task=None):
         
         data = datasets[task]
         mapping = COLUMN_MAPPINGS[task]
-            
-            for col in mapping['judgeColumns']:
-                if not col:
-                    continue
-                if col in data.columns:
-                    scores = pd.to_numeric(data[col], errors='coerce').dropna()
-                    scores = scores[(scores >= 1) & (scores <= 5)]
-                    all_scores.extend(scores.tolist())
+        
+        for col in mapping['judgeColumns']:
+            if not col:
+                continue
+            if col in data.columns:
+                scores = pd.to_numeric(data[col], errors='coerce').dropna()
+                scores = scores[(scores >= 1) & (scores <= 5)]
+                all_scores.extend(scores.tolist())
 
     if len(all_scores) == 0:
         return go.Figure()
@@ -496,30 +496,30 @@ def create_correlation_chart(datasets, specific_task=None):
         
         data = datasets[task]
         mapping = COLUMN_MAPPINGS[task]
-            
-            for model_index, (judge_col, bert_col) in enumerate(zip(mapping['judgeColumns'], mapping['bertColumns'])):
-                if not judge_col or not bert_col:
-                    continue
-                    
-                if judge_col in data.columns and bert_col in data.columns:
-                    judge_scores = pd.to_numeric(data[judge_col], errors='coerce')
-                    bert_scores = pd.to_numeric(data[bert_col], errors='coerce')
-                    
-                    valid_mask = (~judge_scores.isna()) & (~bert_scores.isna()) & (judge_scores >= 1) & (judge_scores <= 5) & (bert_scores >= 0)
-                    
-                    if valid_mask.sum() > 0:
-                        model_key = list(MODEL_COLORS.keys())[model_index]
-                        fig.add_trace(go.Scatter(
-                            x=bert_scores[valid_mask],
-                            y=judge_scores[valid_mask],
-                            mode='markers',
-                            name=f"{task} - {model_key}",
-                            marker=dict(
-                                color=MODEL_COLORS[model_key],
-                                size=8,
-                                opacity=0.7
-                            )
-                        ))
+        
+        for model_index, (judge_col, bert_col) in enumerate(zip(mapping['judgeColumns'], mapping['bertColumns'])):
+            if not judge_col or not bert_col:
+                continue
+                
+            if judge_col in data.columns and bert_col in data.columns:
+                judge_scores = pd.to_numeric(data[judge_col], errors='coerce')
+                bert_scores = pd.to_numeric(data[bert_col], errors='coerce')
+                
+                valid_mask = (~judge_scores.isna()) & (~bert_scores.isna()) & (judge_scores >= 1) & (judge_scores <= 5) & (bert_scores >= 0)
+                
+                if valid_mask.sum() > 0:
+                    model_key = list(MODEL_COLORS.keys())[model_index]
+                    fig.add_trace(go.Scatter(
+                        x=bert_scores[valid_mask],
+                        y=judge_scores[valid_mask],
+                        mode='markers',
+                        name=f"{task} - {model_key}",
+                        marker=dict(
+                            color=MODEL_COLORS[model_key],
+                            size=8,
+                            opacity=0.7
+                        )
+                    ))
     
     fig.update_layout(
         title="⚖️ Judge vs BERT Correlation",
