@@ -401,8 +401,7 @@ def create_bert_comparison_chart(datasets, specific_task=None):
                 color=line_colors[task],
                 width=3
             ),
-            marker=dict(size=6),
-            fill=False
+            marker=dict(size=6)
         ))
     
     fig.update_layout(
