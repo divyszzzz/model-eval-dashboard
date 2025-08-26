@@ -294,7 +294,7 @@ def calculate_best_overall_model(datasets):
     return {'model': best_model, 'score': best_score}
 
 def create_judge_comparison_chart(datasets, specific_task=None):
-    """Create judge scores comparison chart"""
+    """Create judge scores comparison chart with full model names"""
     fig = go.Figure()
     
     tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
@@ -308,20 +308,11 @@ def create_judge_comparison_chart(datasets, specific_task=None):
     if max_models == 0:
         return fig
     
-    # Create model labels
+    # Create model labels with FULL model names
     model_labels = []
     for i in range(max_models):
         model_key = list(MODEL_COLORS.keys())[i]
-        model_names = {
-            'MODEL A': 'A (LLAMA 3.1 8B)',
-            'MODEL B': 'B (V1_INSTRUCT_SFT)',
-            'MODEL C': 'C (V2_BASE_CPT_SFT_CK21)',
-            'MODEL D': 'D (V2_DPO_RUN1)',
-            'MODEL E': 'E (V2_DPO_RUN2)',
-            'MODEL F': 'F (V2_CPT_RESIDUAL)',
-            'MODEL G': 'G (V2_CPT_RESIDUAL_CONCISE)'
-        }
-        model_labels.append(model_names[model_key])
+        model_labels.append(MODEL_NAMES[model_key])  # Use full model names
     
     # Process each task
     for task in tasks_to_process:
@@ -368,13 +359,14 @@ def create_judge_comparison_chart(datasets, specific_task=None):
         showlegend=not specific_task,
         height=400,
         template="plotly_white",
-        font=dict(size=12)
+        font=dict(size=10),
+        xaxis=dict(tickangle=45)  # Rotate x-axis labels for better readability
     )
     
     return fig
 
 def create_bert_comparison_chart(datasets, specific_task=None):
-    """Create BERT F1 scores comparison chart"""
+    """Create BERT F1 scores comparison chart with full model names"""
     fig = go.Figure()
     
     tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
@@ -388,20 +380,11 @@ def create_bert_comparison_chart(datasets, specific_task=None):
     if max_models == 0:
         return fig
     
-    # Create model labels
+    # Create model labels with FULL model names
     model_labels = []
     for i in range(max_models):
         model_key = list(MODEL_COLORS.keys())[i]
-        model_names = {
-            'MODEL A': 'A (LLAMA 3.1 8B)',
-            'MODEL B': 'B (V1_INSTRUCT_SFT)',
-            'MODEL C': 'C (V2_BASE_CPT_SFT_CK21)',
-            'MODEL D': 'D (V2_DPO_RUN1)',
-            'MODEL E': 'E (V2_DPO_RUN2)',
-            'MODEL F': 'F (V2_CPT_RESIDUAL)',
-            'MODEL G': 'G (V2_CPT_RESIDUAL_CONCISE)'
-        }
-        model_labels.append(model_names[model_key])
+        model_labels.append(MODEL_NAMES[model_key])  # Use full model names
     
     # Process each task
     for task in tasks_to_process:
@@ -445,132 +428,14 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         showlegend=not specific_task,
         height=400,
         template="plotly_white",
-        font=dict(size=12)
-    )
-    
-    return fig
-
-def create_distribution_chart(datasets, specific_task=None):
-    """Create judge score distribution chart"""
-    tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
-    all_scores = []
-    
-    for task in tasks_to_process:
-        if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
-            continue
-        
-        data = datasets[task]
-        mapping = COLUMN_MAPPINGS[task]
-        
-        for col in mapping['judgeColumns']:
-            if not col or col not in data.columns:
-                continue
-            
-            numeric_series = pd.to_numeric(data[col], errors='coerce')
-            valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
-            all_scores.extend(valid_scores.tolist())
-
-    if len(all_scores) == 0:
-        return go.Figure()
-
-    # Calculate distribution exactly as in HTML
-    distribution = []
-    for score in [1, 2, 3, 4, 5]:
-        count = sum(1 for s in all_scores if round(s) == score)
-        distribution.append(count)
-
-    # Colors exactly as in HTML
-    colors = [
-        'rgba(255, 99, 132, 0.8)',
-        'rgba(255, 159, 64, 0.8)',
-        'rgba(255, 205, 86, 0.8)',
-        'rgba(75, 192, 192, 0.8)',
-        'rgba(54, 162, 235, 0.8)'
-    ]
-    
-    border_colors = [
-        '#FF6384',
-        '#FF9F40',
-        '#FFCD56',
-        '#4BC0C0',
-        '#36A2EB'
-    ]
-
-    fig = go.Figure(data=[go.Pie(
-        labels=['Score 1 (Poor)', 'Score 2 (Below Avg)', 'Score 3 (Average)', 'Score 4 (Good)', 'Score 5 (Excellent)'],
-        values=distribution,
-        hole=.3,
-        marker=dict(
-            colors=colors,
-            line=dict(color=border_colors, width=2)
-        )
-    )])
-    
-    fig.update_layout(
-        title="📈 Judge Score Distribution",
-        height=400,
-        template="plotly_white",
-        showlegend=True,
-        legend=dict(orientation="v", x=1.05)
-    )
-    
-    return fig
-
-def create_correlation_chart(datasets, specific_task=None):
-    """Create Judge vs BERT correlation scatter plot"""
-    fig = go.Figure()
-    
-    tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
-    
-    for task in tasks_to_process:
-        if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
-            continue
-        
-        data = datasets[task]
-        mapping = COLUMN_MAPPINGS[task]
-        
-        for model_index, (judge_col, bert_col) in enumerate(zip(mapping['judgeColumns'], mapping['bertColumns'])):
-            if not judge_col or not bert_col:
-                continue
-                
-            if judge_col not in data.columns or bert_col not in data.columns:
-                continue
-            
-            judge_scores = pd.to_numeric(data[judge_col], errors='coerce')
-            bert_scores = pd.to_numeric(data[bert_col], errors='coerce')
-            
-            valid_mask = (~judge_scores.isna()) & (~bert_scores.isna()) & (judge_scores >= 1) & (judge_scores <= 5) & (bert_scores >= 0)
-            
-            if valid_mask.sum() > 0:
-                model_key = list(MODEL_COLORS.keys())[model_index]
-                fig.add_trace(go.Scatter(
-                    x=bert_scores[valid_mask],
-                    y=judge_scores[valid_mask],
-                    mode='markers',
-                    name=f"{task} - {model_key}",
-                    marker=dict(
-                        color=MODEL_COLORS[model_key],
-                        size=8,
-                        opacity=0.7
-                    )
-                ))
-    
-    fig.update_layout(
-        title="⚖️ Judge vs BERT Correlation",
-        xaxis_title="BERT F1 Score",
-        yaxis_title="Judge Score (1-5)",
-        xaxis=dict(range=[0, 1]),
-        yaxis=dict(range=[1, 5]),
-        height=400,
-        template="plotly_white",
-        showlegend=not specific_task,
-        font=dict(size=12)
+        font=dict(size=10),
+        xaxis=dict(tickangle=45)  # Rotate x-axis labels for better readability
     )
     
     return fig
 
 def create_task_comparison_chart(datasets, specific_task=None):
-    """Create task performance comparison chart"""
+    """Create task performance comparison chart with full model names"""
     fig = go.Figure()
     
     tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
@@ -611,7 +476,7 @@ def create_task_comparison_chart(datasets, specific_task=None):
             task_scores.append(avg_score)
         
         fig.add_trace(go.Bar(
-            name=model,
+            name=MODEL_NAMES[model],  # Use full model names
             x=[task.capitalize() for task in valid_tasks],
             y=task_scores,
             marker_color=MODEL_COLORS[model],
@@ -625,11 +490,17 @@ def create_task_comparison_chart(datasets, specific_task=None):
         xaxis_title="Tasks",
         yaxis_title="Average Judge Score (1-5 Scale)",
         yaxis=dict(range=[0, 5]),
-        height=400,
+        height=500,
         template="plotly_white",
         barmode='group',
         showlegend=True,
-        legend=dict(orientation="h", x=0, y=1.02)
+        legend=dict(
+            orientation="v", 
+            x=1.02, 
+            y=1,
+            font=dict(size=10)
+        ),
+        font=dict(size=10)
     )
     
     return fig
@@ -782,27 +653,33 @@ def main():
         else:
             st.info("Showing overview across all loaded tasks")
         
-        # Create two columns for charts
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            fig1 = create_judge_comparison_chart(st.session_state.datasets, task_filter)
-            st.plotly_chart(fig1, use_container_width=True)
-            
-            fig3 = create_distribution_chart(st.session_state.datasets, task_filter)
-            st.plotly_chart(fig3, use_container_width=True)
-        
-        with col2:
-            fig2 = create_bert_comparison_chart(st.session_state.datasets, task_filter)
-            st.plotly_chart(fig2, use_container_width=True)
-            
-            fig4 = create_correlation_chart(st.session_state.datasets, task_filter)
-            st.plotly_chart(fig4, use_container_width=True)
-        
-        # Full-width task comparison (only for overview)
+        # For overview (main page), show all three charts
         if not task_filter:
-            fig5 = create_task_comparison_chart(st.session_state.datasets)
-            st.plotly_chart(fig5, use_container_width=True)
+            # Task Performance Comparison (full-width, only on overview)
+            st.plotly_chart(create_task_comparison_chart(st.session_state.datasets), use_container_width=True)
+            
+            # Judge and BERT comparison charts side by side
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                fig1 = create_judge_comparison_chart(st.session_state.datasets, task_filter)
+                st.plotly_chart(fig1, use_container_width=True)
+            
+            with col2:
+                fig2 = create_bert_comparison_chart(st.session_state.datasets, task_filter)
+                st.plotly_chart(fig2, use_container_width=True)
+        
+        # For individual task pages, only show Judge and BERT comparison charts
+        else:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                fig1 = create_judge_comparison_chart(st.session_state.datasets, task_filter)
+                st.plotly_chart(fig1, use_container_width=True)
+            
+            with col2:
+                fig2 = create_bert_comparison_chart(st.session_state.datasets, task_filter)
+                st.plotly_chart(fig2, use_container_width=True)
         
         # Data Preview Section
         if task_filter and st.session_state.datasets[task_filter] is not None:
