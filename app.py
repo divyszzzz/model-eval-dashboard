@@ -1,19 +1,19 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import numpy as np
+import os
+from datetime import datetime
 
 # Page configuration
 st.set_page_config(
-    page_title="Multi-Model Evaluation Dashboard (1-5 Scale)",
+    page_title="Multi-Model Evaluation Dashboard",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS to match your HTML exactly
+# Custom CSS
 st.markdown("""
 <style>
     .main > div {
@@ -61,11 +61,11 @@ st.markdown("""
         opacity: 0.8;
     }
     
-    .upload-section {
-        background: rgba(108, 99, 255, 0.1);
-        padding: 2rem;
-        border-radius: 15px;
-        border: 2px solid rgba(108, 99, 255, 0.2);
+    .data-status {
+        background: rgba(40, 167, 69, 0.1);
+        padding: 1rem;
+        border-radius: 10px;
+        border: 2px solid rgba(40, 167, 69, 0.3);
         margin-bottom: 2rem;
     }
     
@@ -89,19 +89,6 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
     
-    .stSelectbox > div > div {
-        background-color: rgba(108, 99, 255, 0.1);
-        border-radius: 10px;
-    }
-    
-    .debug-info {
-        background-color: #f0f0f0;
-        padding: 10px;
-        border-radius: 5px;
-        margin: 10px 0;
-        font-size: 12px;
-    }
-    
     /* Hide streamlit menu */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
@@ -109,7 +96,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Model configurations - EXACTLY as in your HTML
+# Model configurations
 MODEL_COLORS = {
     'MODEL A': '#FF6B6B',
     'MODEL B': '#4ECDC4', 
@@ -130,17 +117,17 @@ MODEL_NAMES = {
     'MODEL G': 'V2_BASE_CPT_RESIDUAL_CONCISE'
 }
 
-# Column mappings - EXACTLY as in your HTML JavaScript
+# Column mappings
 COLUMN_MAPPINGS = {
     'qa': {
         'judgeColumns': [
-            'Judge_Model_A_Score',  # MODEL A: LLAMA 3.1 8B INSTRUCT
-            'Judge_Model_B_Score',  # MODEL B: V1_INSTRUCT_SFT_CK34
-            'Judge_Model_C_Score',  # MODEL C: V2_BASE_CPT_SFT_CK21
-            'Judge_Model_F_Score',  # MODEL D: V2_BASE_CPT_SFT_DPO_RUN1
-            'Judge_Model_G_Score',  # MODEL E: V2_BASE_CPT_SFT_DPO_RUN2
-            'Judge_Model_H_Score',  # MODEL F: V2_BASE_CPT_RESIDUAL
-            'Judge_Model_I_Score'   # MODEL G: V2_BASE_CPT_RESIDUAL_CONCISE (QnA only)
+            'Judge_Model_A_Score',
+            'Judge_Model_B_Score',
+            'Judge_Model_C_Score',
+            'Judge_Model_F_Score',
+            'Judge_Model_G_Score',
+            'Judge_Model_H_Score',
+            'Judge_Model_I_Score'
         ],
         'bertColumns': [
             'f1_base',
@@ -154,12 +141,12 @@ COLUMN_MAPPINGS = {
     },
     'summary': {
         'judgeColumns': [
-            'Judge_Model_A_Score',  # MODEL A: LLAMA 3.1 8B INSTRUCT
-            'Judge_Model_B_Score',  # MODEL B: V1_INSTRUCT_SFT_CK34
-            'Judge_Model_C_Score',  # MODEL C: V2_BASE_CPT_SFT_CK21
-            'Judge_Model_F_Score',  # MODEL D: V2_BASE_CPT_SFT_DPO_RUN1
-            'Judge_Model_G_Score',  # MODEL E: V2_BASE_CPT_SFT_DPO_RUN2
-            'Judge_Model_H_Score'   # MODEL F: V2_BASE_CPT_RESIDUAL
+            'Judge_Model_A_Score',
+            'Judge_Model_B_Score',
+            'Judge_Model_C_Score',
+            'Judge_Model_F_Score',
+            'Judge_Model_G_Score',
+            'Judge_Model_H_Score'
         ],
         'bertColumns': [
             'instruct_bertscore_f1',
@@ -172,12 +159,12 @@ COLUMN_MAPPINGS = {
     },
     'classification': {
         'judgeColumns': [
-            'Judge_Model_A_Score',  # MODEL A: LLAMA 3.1 8B INSTRUCT
-            'Judge_Model_B_Score',  # MODEL B: V1_INSTRUCT_SFT_CK34
-            'Judge_Model_C_Score',  # MODEL C: V2_BASE_CPT_SFT_CK21
-            'Judge_Model_F_Score',  # MODEL D: V2_BASE_CPT_SFT_DPO_RUN1
-            'Judge_Model_G_Score',  # MODEL E: V2_BASE_CPT_SFT_DPO_RUN2
-            'Judge_Model_H_Score'   # MODEL F: V2_BASE_CPT_RESIDUAL
+            'Judge_Model_A_Score',
+            'Judge_Model_B_Score',
+            'Judge_Model_C_Score',
+            'Judge_Model_F_Score',
+            'Judge_Model_G_Score',
+            'Judge_Model_H_Score'
         ],
         'bertColumns': [
             'instruct_bertscore_f1',
@@ -190,74 +177,58 @@ COLUMN_MAPPINGS = {
     }
 }
 
-# Initialize session state
-if 'datasets' not in st.session_state:
-    st.session_state.datasets = {
-        'qa': None,
-        'summary': None,
-        'classification': None
-    }
+# Data file paths
+DATA_FILES = {
+    'qa': 'data/qa_data.xlsx',
+    'summary': 'data/summary_data.xlsx',
+    'classification': 'data/classification_data.xlsx'
+}
 
-def load_excel_data(uploaded_file):
-    """Load and process Excel data"""
-    try:
-        df = pd.read_excel(uploaded_file)
-        return df
-    except Exception as e:
-        st.error(f"Error loading file: {str(e)}")
-        return None
-
-def debug_columns_and_values(df, task, columns):
-    """Debug function to show which columns exist and their sample values"""
-    st.write(f"**Debug for {task}:**")
-    existing_cols = [col for col in columns if col and col in df.columns]
-    missing_cols = [col for col in columns if col and col not in df.columns]
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_data_from_server():
+    """Load data from server files"""
+    datasets = {}
+    file_status = {}
     
-    if existing_cols:
-        st.write(f"✅ Found columns: {existing_cols}")
-        # Show sample values for first few columns
-        sample_data = {}
-        for col in existing_cols[:3]:  # Show first 3 columns
-            valid_values = df[col].dropna()
-            if len(valid_values) > 0:
-                sample_data[col] = {
-                    'count': len(valid_values),
-                    'sample': valid_values.head(5).tolist(),
-                    'type': str(valid_values.dtype)
+    for task, file_path in DATA_FILES.items():
+        try:
+            if os.path.exists(file_path):
+                df = pd.read_excel(file_path)
+                datasets[task] = df
+                file_status[task] = {
+                    'status': 'success',
+                    'rows': len(df),
+                    'last_modified': datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
                 }
-        st.json(sample_data)
+            else:
+                datasets[task] = None
+                file_status[task] = {'status': 'missing', 'rows': 0, 'last_modified': 'N/A'}
+        except Exception as e:
+            datasets[task] = None
+            file_status[task] = {'status': 'error', 'error': str(e), 'rows': 0, 'last_modified': 'N/A'}
     
-    if missing_cols:
-        st.write(f"❌ Missing columns: {missing_cols}")
+    return datasets, file_status
 
 def calculate_averages(df, columns, score_range=(1, 5)):
     """Calculate average scores with proper filtering"""
     averages = []
     for col in columns:
-        if not col:  # Handle None/empty column names
+        if not col or col not in df.columns:
             averages.append(0)
             continue
             
-        if col in df.columns:
-            # Convert to numeric, coercing errors to NaN
-            numeric_series = pd.to_numeric(df[col], errors='coerce')
-            # Filter valid scores
-            if score_range == (1, 5):  # Judge scores
-                valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
-            else:  # BERT scores (0, 1)
-                valid_scores = numeric_series[(numeric_series >= 0) & (numeric_series <= 1)].dropna()
-            
-            if len(valid_scores) > 0:
-                averages.append(valid_scores.mean())
-            else:
-                averages.append(0)
+        numeric_series = pd.to_numeric(df[col], errors='coerce')
+        if score_range == (1, 5):
+            valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
         else:
-            averages.append(0)
+            valid_scores = numeric_series[(numeric_series >= 0) & (numeric_series <= 1)].dropna()
+        
+        averages.append(valid_scores.mean() if len(valid_scores) > 0 else 0)
     
     return averages
 
 def calculate_best_overall_model(datasets):
-    """Calculate the best overall model exactly as in HTML"""
+    """Calculate the best overall model"""
     model_scores = {model: [] for model in MODEL_COLORS.keys()}
     
     for task, data in datasets.items():
@@ -299,7 +270,6 @@ def create_judge_comparison_chart(datasets, specific_task=None):
     
     tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
     
-    # Determine the maximum number of models across all tasks
     max_models = 0
     for task in tasks_to_process:
         if task in COLUMN_MAPPINGS:
@@ -308,13 +278,8 @@ def create_judge_comparison_chart(datasets, specific_task=None):
     if max_models == 0:
         return fig
     
-    # Create model labels with FULL model names
-    model_labels = []
-    for i in range(max_models):
-        model_key = list(MODEL_COLORS.keys())[i]
-        model_labels.append(MODEL_NAMES[model_key])  # Use full model names
+    model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
     
-    # Process each task
     for task in tasks_to_process:
         if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
             continue
@@ -322,14 +287,10 @@ def create_judge_comparison_chart(datasets, specific_task=None):
         data = datasets[task]
         mapping = COLUMN_MAPPINGS[task]
         
-        # Calculate averages for this task
         averages = calculate_averages(data, mapping['judgeColumns'], (1, 5))
-        
-        # Pad averages to match max_models length
         while len(averages) < max_models:
             averages.append(0)
         
-        # Task colors exactly as in HTML
         task_colors = {
             'qa': 'rgba(255, 107, 107, 0.8)',
             'summary': 'rgba(78, 205, 196, 0.8)',
@@ -352,15 +313,15 @@ def create_judge_comparison_chart(datasets, specific_task=None):
         ))
     
     fig.update_layout(
-        title="🏆 Judge Scores Comparison (1-5 Scale)",
+        title="Judge Scores Comparison (1-5 Scale)",
         xaxis_title="Models",
         yaxis_title="Judge Score (1-5 Scale)",
         yaxis=dict(range=[0, 5], dtick=0.5),
         showlegend=not specific_task,
         height=400,
         template="plotly_white",
-        font=dict(size=10),
-        xaxis=dict(tickangle=45)  # Rotate x-axis labels for better readability
+        font=dict(size=9),
+        xaxis=dict(tickangle=45)
     )
     
     return fig
@@ -371,7 +332,6 @@ def create_bert_comparison_chart(datasets, specific_task=None):
     
     tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
     
-    # Determine the maximum number of models across all tasks
     max_models = 0
     for task in tasks_to_process:
         if task in COLUMN_MAPPINGS:
@@ -380,13 +340,8 @@ def create_bert_comparison_chart(datasets, specific_task=None):
     if max_models == 0:
         return fig
     
-    # Create model labels with FULL model names
-    model_labels = []
-    for i in range(max_models):
-        model_key = list(MODEL_COLORS.keys())[i]
-        model_labels.append(MODEL_NAMES[model_key])  # Use full model names
+    model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
     
-    # Process each task
     for task in tasks_to_process:
         if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
             continue
@@ -394,14 +349,10 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         data = datasets[task]
         mapping = COLUMN_MAPPINGS[task]
         
-        # Calculate averages for this task
         averages = calculate_averages(data, mapping['bertColumns'], (0, 1))
-        
-        # Pad averages to match max_models length
         while len(averages) < max_models:
             averages.append(0)
         
-        # Line colors exactly as in HTML
         line_colors = {
             'qa': '#96CEB4',
             'summary': '#FF9F43',
@@ -413,43 +364,33 @@ def create_bert_comparison_chart(datasets, specific_task=None):
             x=model_labels,
             y=averages,
             mode='lines+markers',
-            line=dict(
-                color=line_colors.get(task, '#808080'),
-                width=3
-            ),
+            line=dict(color=line_colors.get(task, '#808080'), width=3),
             marker=dict(size=6)
         ))
     
     fig.update_layout(
-        title="📊 BERT F1 Scores",
+        title="BERT F1 Scores",
         xaxis_title="Models",
         yaxis_title="BERT F1 Score",
         yaxis=dict(range=[0, 1], dtick=0.2),
         showlegend=not specific_task,
         height=400,
         template="plotly_white",
-        font=dict(size=10),
-        xaxis=dict(tickangle=45)  # Rotate x-axis labels for better readability
+        font=dict(size=9),
+        xaxis=dict(tickangle=45)
     )
     
     return fig
 
-def create_task_comparison_chart(datasets, specific_task=None):
-    """Create task performance comparison chart with full model names"""
+def create_task_comparison_chart(datasets):
+    """Create task performance comparison chart"""
     fig = go.Figure()
     
-    tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
-    valid_tasks = [task for task in tasks_to_process if datasets[task] is not None and not datasets[task].empty]
-    
+    valid_tasks = [task for task, data in datasets.items() if data is not None and not data.empty]
     if not valid_tasks:
         return fig
     
-    # Determine the maximum number of models across all tasks
-    max_models = 0
-    for task in valid_tasks:
-        if task in COLUMN_MAPPINGS:
-            max_models = max(max_models, len(COLUMN_MAPPINGS[task]['judgeColumns']))
-
+    max_models = max(len(COLUMN_MAPPINGS[task]['judgeColumns']) for task in valid_tasks if task in COLUMN_MAPPINGS)
     models = list(MODEL_COLORS.keys())[:max_models]
     
     for index, model in enumerate(models):
@@ -476,7 +417,7 @@ def create_task_comparison_chart(datasets, specific_task=None):
             task_scores.append(avg_score)
         
         fig.add_trace(go.Bar(
-            name=MODEL_NAMES[model],  # Use full model names
+            name=MODEL_NAMES[model],
             x=[task.capitalize() for task in valid_tasks],
             y=task_scores,
             marker_color=MODEL_COLORS[model],
@@ -486,7 +427,7 @@ def create_task_comparison_chart(datasets, specific_task=None):
         ))
     
     fig.update_layout(
-        title="🎯 Task Performance Comparison" if not specific_task else "Average Performance Across Tasks",
+        title="Task Performance Comparison",
         xaxis_title="Tasks",
         yaxis_title="Average Judge Score (1-5 Scale)",
         yaxis=dict(range=[0, 5]),
@@ -494,13 +435,8 @@ def create_task_comparison_chart(datasets, specific_task=None):
         template="plotly_white",
         barmode='group',
         showlegend=True,
-        legend=dict(
-            orientation="v", 
-            x=1.02, 
-            y=1,
-            font=dict(size=10)
-        ),
-        font=dict(size=10)
+        legend=dict(orientation="v", x=1.02, y=1, font=dict(size=9)),
+        font=dict(size=9)
     )
     
     return fig
@@ -509,15 +445,39 @@ def main():
     # Header
     st.markdown("""
     <div class="main-header">
-        <h1>🚀 Multi-Model Evaluation Dashboard</h1>
+        <h1>Multi-Model Evaluation Dashboard</h1>
         <p>Comprehensive Analysis with Judge Scores (1-5 Scale) & BERT F1 Scores</p>
         <p><em>QnA: 7 Models | Summary & Classification: 6 Models</em></p>
     </div>
     """, unsafe_allow_html=True)
     
+    # Load data from server
+    datasets, file_status = load_data_from_server()
+    
+    # Data status display
+    st.markdown('<div class="data-status">', unsafe_allow_html=True)
+    st.markdown("### Data Status")
+    col1, col2, col3 = st.columns(3)
+    
+    for i, (task, status) in enumerate(file_status.items()):
+        with [col1, col2, col3][i]:
+            if status['status'] == 'success':
+                st.success(f"✅ {task.upper()}: {status['rows']} rows")
+                st.caption(f"Last updated: {status['last_modified']}")
+            elif status['status'] == 'missing':
+                st.warning(f"⚠️ {task.upper()}: File not found")
+            else:
+                st.error(f"❌ {task.upper()}: {status.get('error', 'Unknown error')}")
+    
+    # Refresh button
+    if st.button("🔄 Refresh Data"):
+        st.cache_data.clear()
+        st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     # Model Legend
     st.markdown("### Model Legend")
-    
     col1, col2 = st.columns(2)
     models_list = list(MODEL_NAMES.items())
     
@@ -531,72 +491,15 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     
-    # File Upload Section
-    st.markdown('<div class="upload-section">', unsafe_allow_html=True)
-    st.markdown("### 📂 Upload Dataset Files")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        qa_file = st.file_uploader("📊 QA Dataset (Excel)", type=['xlsx', 'xls'], key="qa")
-    
-    with col2:
-        summary_file = st.file_uploader("📝 Summary Dataset (Excel)", type=['xlsx', 'xls'], key="summary")
-    
-    with col3:
-        classification_file = st.file_uploader("🏷️ Classification Dataset (Excel)", type=['xlsx', 'xls'], key="classification")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Load datasets
-    if qa_file:
-        st.session_state.datasets['qa'] = load_excel_data(qa_file)
-        if st.session_state.datasets['qa'] is not None:
-            st.success(f"QA data loaded successfully ({len(st.session_state.datasets['qa'])} rows)")
-            
-            # Debug info
-            with st.expander("🔍 QA Data Debug Info"):
-                debug_columns_and_values(
-                    st.session_state.datasets['qa'], 
-                    'qa', 
-                    COLUMN_MAPPINGS['qa']['judgeColumns'] + COLUMN_MAPPINGS['qa']['bertColumns']
-                )
-    
-    if summary_file:
-        st.session_state.datasets['summary'] = load_excel_data(summary_file)
-        if st.session_state.datasets['summary'] is not None:
-            st.success(f"Summary data loaded successfully ({len(st.session_state.datasets['summary'])} rows)")
-            
-            # Debug info
-            with st.expander("🔍 Summary Data Debug Info"):
-                debug_columns_and_values(
-                    st.session_state.datasets['summary'], 
-                    'summary', 
-                    COLUMN_MAPPINGS['summary']['judgeColumns'] + COLUMN_MAPPINGS['summary']['bertColumns']
-                )
-    
-    if classification_file:
-        st.session_state.datasets['classification'] = load_excel_data(classification_file)
-        if st.session_state.datasets['classification'] is not None:
-            st.success(f"Classification data loaded successfully ({len(st.session_state.datasets['classification'])} rows)")
-            
-            # Debug info
-            with st.expander("🔍 Classification Data Debug Info"):
-                debug_columns_and_values(
-                    st.session_state.datasets['classification'], 
-                    'classification', 
-                    COLUMN_MAPPINGS['classification']['judgeColumns'] + COLUMN_MAPPINGS['classification']['bertColumns']
-                )
-    
-    # Summary Statistics
-    if any(df is not None for df in st.session_state.datasets.values()):
+    # Main dashboard (only show if we have data)
+    if any(df is not None for df in datasets.values()):
+        # Summary Statistics
         st.markdown("### Summary Statistics")
-        
         col1, col2, col3 = st.columns(3)
         
-        tasks_loaded = sum(1 for df in st.session_state.datasets.values() if df is not None)
-        total_samples = sum(len(df) for df in st.session_state.datasets.values() if df is not None)
-        best_model_info = calculate_best_overall_model(st.session_state.datasets)
+        tasks_loaded = sum(1 for df in datasets.values() if df is not None)
+        total_samples = sum(len(df) for df in datasets.values() if df is not None)
+        best_model_info = calculate_best_overall_model(datasets)
         
         with col1:
             st.markdown(f"""
@@ -624,17 +527,15 @@ def main():
                 <div class="metric-label">Avg Score: {best_model_info['score']:.2f}</div>
             </div>
             """, unsafe_allow_html=True)
-    
-    # Task Selector
-    if any(df is not None for df in st.session_state.datasets.values()):
-        st.markdown("### Analysis Controls")
         
-        available_tasks = ['overview'] + [task for task, df in st.session_state.datasets.items() if df is not None]
+        # Task Selector
+        st.markdown("### Analysis Controls")
+        available_tasks = ['overview'] + [task for task, df in datasets.items() if df is not None]
         task_options = {
-            'overview': '📈 Overview',
-            'qa': '🤔 QA Analysis', 
-            'summary': '📝 Summary Analysis',
-            'classification': '🏷️ Classification Analysis'
+            'overview': 'Overview',
+            'qa': 'QA Analysis', 
+            'summary': 'Summary Analysis',
+            'classification': 'Classification Analysis'
         }
         
         selected_task = st.selectbox(
@@ -646,112 +547,34 @@ def main():
         task_filter = None if selected_task == 'overview' else selected_task
         
         # Charts Section
-        st.markdown("### 📈 Visualization Dashboard")
+        st.markdown("### Visualization Dashboard")
         
         if task_filter:
             st.info(f"Showing analysis for: **{task_filter.title()}** task")
         else:
             st.info("Showing overview across all loaded tasks")
         
-        # For overview (main page), show all three charts
+        # For overview, show all charts
         if not task_filter:
-            # Task Performance Comparison (full-width, only on overview)
-            st.plotly_chart(create_task_comparison_chart(st.session_state.datasets), use_container_width=True)
+            st.plotly_chart(create_task_comparison_chart(datasets), use_container_width=True)
             
-            # Judge and BERT comparison charts side by side
             col1, col2 = st.columns(2)
-            
             with col1:
-                fig1 = create_judge_comparison_chart(st.session_state.datasets, task_filter)
-                st.plotly_chart(fig1, use_container_width=True)
-            
+                st.plotly_chart(create_judge_comparison_chart(datasets, task_filter), use_container_width=True)
             with col2:
-                fig2 = create_bert_comparison_chart(st.session_state.datasets, task_filter)
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(create_bert_comparison_chart(datasets, task_filter), use_container_width=True)
         
-        # For individual task pages, only show Judge and BERT comparison charts
+        # For individual tasks, only show judge and bert charts
         else:
             col1, col2 = st.columns(2)
-            
             with col1:
-                fig1 = create_judge_comparison_chart(st.session_state.datasets, task_filter)
-                st.plotly_chart(fig1, use_container_width=True)
-            
+                st.plotly_chart(create_judge_comparison_chart(datasets, task_filter), use_container_width=True)
             with col2:
-                fig2 = create_bert_comparison_chart(st.session_state.datasets, task_filter)
-                st.plotly_chart(fig2, use_container_width=True)
-        
-        # Data Preview Section
-        if task_filter and st.session_state.datasets[task_filter] is not None:
-            st.markdown(f"### 📋 {task_filter.title()} Data Preview")
-            df = st.session_state.datasets[task_filter]
-            
-            # Show basic info
-            st.write(f"**Rows:** {len(df)} | **Columns:** {len(df.columns)}")
-            
-            # Show sample data for debugging
-            st.write("**Sample Data (first 10 rows, relevant columns):**")
-            if task_filter in COLUMN_MAPPINGS:
-                judge_cols = COLUMN_MAPPINGS[task_filter]['judgeColumns']
-                bert_cols = COLUMN_MAPPINGS[task_filter]['bertColumns']
-                
-                available_judge_cols = [col for col in judge_cols if col and col in df.columns]
-                available_bert_cols = [col for col in bert_cols if col and col in df.columns]
-                
-                if available_judge_cols or available_bert_cols:
-                    # Show some judge and BERT columns
-                    preview_cols = available_judge_cols[:4] + available_bert_cols[:4]  # Show first 4 of each
-                    if preview_cols:
-                        preview_df = df[preview_cols].head(10)
-                        st.dataframe(preview_df, use_container_width=True)
-                        
-                        # Show column statistics
-                        st.write("**Column Statistics:**")
-                        stats_data = {}
-                        for col in preview_cols:
-                            numeric_series = pd.to_numeric(df[col], errors='coerce')
-                            valid_data = numeric_series.dropna()
-                            if len(valid_data) > 0:
-                                stats_data[col] = {
-                                    'count': len(valid_data),
-                                    'mean': f"{valid_data.mean():.3f}",
-                                    'min': f"{valid_data.min():.3f}",
-                                    'max': f"{valid_data.max():.3f}"
-                                }
-                        
-                        if stats_data:
-                            stats_df = pd.DataFrame(stats_data).T
-                            st.dataframe(stats_df, use_container_width=True)
-                    else:
-                        st.warning("No matching columns found. Showing first 10 columns:")
-                        st.dataframe(df.iloc[:10, :10], use_container_width=True)
-                else:
-                    st.warning("Expected columns not found. Showing first 10 columns:")
-                    st.dataframe(df.iloc[:10, :10], use_container_width=True)
-            else:
-                st.dataframe(df.head(10), use_container_width=True)
+                st.plotly_chart(create_bert_comparison_chart(datasets, task_filter), use_container_width=True)
     
     else:
-        st.info("👆 Please upload at least one Excel file to start the analysis.")
-        
-        # Show sample data format
-        with st.expander("📋 Expected Data Format"):
-            st.markdown("""
-            **For each task, your Excel file should contain:**
-            
-            **QA Task:**
-            - Judge score columns: `Judge_Model_A_Score`, `Judge_Model_B_Score`, `Judge_Model_C_Score`, `Judge_Model_F_Score`, `Judge_Model_G_Score`, `Judge_Model_H_Score`, `Judge_Model_I_Score`
-            - BERT F1 columns: `f1_base`, `f1_V34`, `bertscore_f1_v21`, `bertscore_f1_v2_dpo_run1`, `bertscore_f1_v2_dpo_run2`, `bertscore_f1_v2_cpt_residual`, `bertscore_f1_V2_BASE_CPT_RESIDUAL_CONCISE_qa`
-            
-            **Summary Task:**
-            - Judge score columns: `Judge_Model_A_Score`, `Judge_Model_B_Score`, `Judge_Model_C_Score`, `Judge_Model_F_Score`, `Judge_Model_G_Score`, `Judge_Model_H_Score`
-            - BERT F1 columns: `instruct_bertscore_f1`, `finetune_bertscore_f1`, `sft_v21_bertscore_f1`, `bertscore_f1_v2_dpo_run1`, `bertscore_f1_v2_dpo_run2`, `bertscore_f1_v2_cpt_residual`
-            
-            **Classification Task:**
-            - Same structure as Summary task
-            
-            All judge scores should be on a 1-5 scale, and BERT F1 scores should be between 0-1.
-            """)
+        st.warning("No data files found. Please ensure the following files exist in the data folder:")
+        st.info("• data/qa_data.xlsx\n• data/summary_data.xlsx\n• data/classification_data.xlsx")
 
 if __name__ == "__main__":
     main()
