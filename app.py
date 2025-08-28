@@ -378,32 +378,45 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         while len(averages) < max_models:
             averages.append(0)
         
-        task_colors = {
-            'qa': 'rgba(150, 206, 180, 0.8)',
-            'summary': 'rgba(255, 159, 67, 0.8)', 
-            'classification': 'rgba(153, 102, 255, 0.8)'
-        }
-        
-        border_colors = {
-            'qa': '#96CEB4',
-            'summary': '#FF9F43',
-            'classification': '#9966FF'
-        }
-        
-        fig.add_trace(go.Bar(
-            name=task.capitalize(),
-            x=model_labels,
-            y=averages,
-            marker_color=task_colors.get(task, 'rgba(128, 128, 128, 0.8)'),
-            marker_line_color=border_colors.get(task, '#808080'),
-            marker_line_width=2
-        ))
+        # Use model-specific colors instead of task colors
+        if specific_task:  # Individual task page - use model colors
+            colors = [MODEL_COLORS[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
+            
+            fig.add_trace(go.Bar(
+                name=task.capitalize(),
+                x=model_labels,
+                y=averages,
+                marker_color=colors,
+                marker_line_color='white',
+                marker_line_width=1
+            ))
+        else:  # Overview page - keep task colors for comparison
+            task_colors = {
+                'qa': 'rgba(150, 206, 180, 0.8)',
+                'summary': 'rgba(255, 159, 67, 0.8)', 
+                'classification': 'rgba(153, 102, 255, 0.8)'
+            }
+            
+            border_colors = {
+                'qa': '#96CEB4',
+                'summary': '#FF9F43',
+                'classification': '#9966FF'
+            }
+            
+            fig.add_trace(go.Bar(
+                name=task.capitalize(),
+                x=model_labels,
+                y=averages,
+                marker_color=task_colors.get(task, 'rgba(128, 128, 128, 0.8)'),
+                marker_line_color=border_colors.get(task, '#808080'),
+                marker_line_width=2
+            ))
     
     fig.update_layout(
         title="BERT F1 Scores",
         xaxis_title="Models",
         yaxis_title="BERT F1 Score",
-        yaxis=dict(range=[0.5, None], dtick=0.05),  # Smaller intervals: 0.05 instead of 0.2
+        yaxis=dict(range=[0.5, None], dtick=0.1),  # 0.1 intervals instead of 0.05
         showlegend=not specific_task,
         height=400,
         template="plotly_white",
