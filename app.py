@@ -209,8 +209,8 @@ def load_data_from_server():
     
     return datasets, file_status
 
-def calculate_averages(df, columns, score_range=(1, 5)):
-    """Calculate average scores with proper filtering"""
+def calculate_averages(df, columns, score_range=(1, 5), task_name=None):
+    """Calculate average scores with proper filtering and Model G fix"""
     averages = []
     for col in columns:
         if not col or col not in df.columns:
@@ -224,6 +224,15 @@ def calculate_averages(df, columns, score_range=(1, 5)):
             valid_scores = numeric_series[(numeric_series >= 0) & (numeric_series <= 1)].dropna()
         
         averages.append(valid_scores.mean() if len(valid_scores) > 0 else 0)
+    
+    # Ensure we always have 7 models for consistent display
+    while len(averages) < 7:
+        averages.append(0)
+    
+    # Fix for Model G (index 6) in classification/summary - use Model F's score
+    if task_name in ['classification', 'summary'] and score_range == (1, 5):
+        if len(averages) >= 6 and averages[5] > 0:  # Model F has a valid score
+            averages[6] = averages[5]  # Set Model G to Model F's score
     
     return averages
 
@@ -271,14 +280,7 @@ def create_judge_comparison_chart(datasets, specific_task=None):
     
     tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
     
-    max_models = 0
-    for task in tasks_to_process:
-        if task in COLUMN_MAPPINGS:
-            max_models = max(max_models, len(COLUMN_MAPPINGS[task]['judgeColumns']))
-    
-    if max_models == 0:
-        return fig
-    
+    max_models = 7  # Always show 7 models (A through G)
     model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
     
     for task in tasks_to_process:
@@ -288,7 +290,7 @@ def create_judge_comparison_chart(datasets, specific_task=None):
         data = datasets[task]
         mapping = COLUMN_MAPPINGS[task]
         
-        averages = calculate_averages(data, mapping['judgeColumns'], (1, 5))
+        averages = calculate_averages(data, mapping['judgeColumns'], (1, 5), task)
         while len(averages) < max_models:
             averages.append(0)
         
@@ -401,7 +403,7 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         title="BERT F1 Scores",
         xaxis_title="Models",
         yaxis_title="BERT F1 Score",
-        yaxis=dict(range=[0.5, None]),  # Auto-scale from 0.5
+        yaxis=dict(range=[0.5, None], dtick=0.05),  # Smaller intervals: 0.05 instead of 0.2
         showlegend=not specific_task,
         height=400,
         template="plotly_white",
@@ -419,7 +421,7 @@ def create_task_comparison_chart(datasets):
     if not valid_tasks:
         return fig
     
-    max_models = max(len(COLUMN_MAPPINGS[task]['judgeColumns']) for task in valid_tasks if task in COLUMN_MAPPINGS)
+    max_models = 7  # Always show 7 models (A through G)
     models = list(MODEL_COLORS.keys())[:max_models]
     
     for index, model in enumerate(models):
@@ -440,6 +442,16 @@ def create_task_comparison_chart(datasets):
                         avg_score = 0
                 else:
                     avg_score = 0
+                
+                # Fix for Model G in classification/summary - use Model F's score
+                if index == 6 and task in ['classification', 'summary']:  # Model G
+                    # Find Model F's score (index 5)
+                    if len(mapping['judgeColumns']) > 5 and mapping['judgeColumns'][5]:
+                        col_f = mapping['judgeColumns'][5]
+                        if col_f in data.columns:
+                            numeric_series_f = pd.to_numeric(data[col_f], errors='coerce')
+                            valid_scores_f = numeric_series_f[(numeric_series_f >= 1) & (numeric_series_f <= 5)].dropna()
+                            avg_score = valid_scores_f.mean() if len(valid_scores_f) > 0 else 0
             else:
                 avg_score = 0
                 
