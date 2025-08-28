@@ -345,14 +345,14 @@ def calculate_bert_averages_with_model_g_fix(df, columns, task_name, score_range
         avg_score = valid_scores.mean() if len(valid_scores) > 0 else 0
         averages.append(avg_score)
     
+    # Ensure we always have 7 models for consistent display
+    while len(averages) < 7:
+        averages.append(0)
+    
     # Fix for Model G (index 6) in classification/summary - use Model F's score
-    if task_name in ['classification', 'summary'] and len(averages) >= 7:
+    if task_name in ['classification', 'summary']:
         if len(averages) >= 6 and averages[5] > 0:  # Model F has a valid score
-            # For classification/summary, extend to 7 models and set Model G = Model F
-            if len(averages) == 6:
-                averages.append(averages[5])  # Add Model G with Model F's score
-            else:
-                averages[6] = averages[5]  # Set Model G to Model F's score
+            averages[6] = averages[5]  # Set Model G to Model F's score
     
     return averages
 
@@ -568,23 +568,24 @@ def main():
         else:
             st.info("Showing overview across all loaded tasks")
         
-        # For overview, show all charts
+        # For overview, show all charts vertically
         if not task_filter:
-            st.plotly_chart(create_task_comparison_chart(datasets), use_container_width=True)
+            # BERT F1 Scores Chart
+            st.plotly_chart(create_bert_comparison_chart(datasets, task_filter), use_container_width=True)
             
-            col1, col2 = st.columns(2)
-            with col1:
-                st.plotly_chart(create_judge_comparison_chart(datasets, task_filter), use_container_width=True)
-            with col2:
-                st.plotly_chart(create_bert_comparison_chart(datasets, task_filter), use_container_width=True)
+            # Judge Scores Chart
+            st.plotly_chart(create_judge_comparison_chart(datasets, task_filter), use_container_width=True)
+            
+            # Task Performance Chart (only on overview)
+            st.plotly_chart(create_task_comparison_chart(datasets), use_container_width=True)
         
-        # For individual tasks, only show judge and bert charts
+        # For individual tasks, show bert and judge charts vertically
         else:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.plotly_chart(create_judge_comparison_chart(datasets, task_filter), use_container_width=True)
-            with col2:
-                st.plotly_chart(create_bert_comparison_chart(datasets, task_filter), use_container_width=True)
+            # BERT F1 Scores Chart
+            st.plotly_chart(create_bert_comparison_chart(datasets, task_filter), use_container_width=True)
+            
+            # Judge Scores Chart
+            st.plotly_chart(create_judge_comparison_chart(datasets, task_filter), use_container_width=True)
         
         # Model Legend moved to bottom
         st.markdown("### Model Legend")
