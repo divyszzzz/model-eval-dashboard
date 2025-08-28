@@ -501,7 +501,7 @@ def main():
     <div class="main-header">
         <h1>Multi-Model Evaluation Dashboard</h1>
         <p>Comprehensive Analysis with Judge Scores (1-5 Scale) & BERT F1 Scores</p>
-        <p><em>QnA: 7 Models | Summary & Classification: 6 Models</em></p>
+        <p><em>Evaluated for QnA, Summary and Classification Tasks on 7 models</em></p>
     </div>
     """, unsafe_allow_html=True)
     
