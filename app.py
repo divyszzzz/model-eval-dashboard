@@ -359,27 +359,27 @@ def calculate_bert_averages_with_model_g_fix(df, columns, task_name, score_range
     return averages
 
 def create_bert_comparison_chart(datasets, specific_task=None):
-    """Create BERT F1 scores comparison chart as bar chart with full model names"""
+    """Create BERT F1 scores comparison chart as bar chart with all 21 combinations (7 models × 3 tasks)"""
     fig = go.Figure()
     
-    tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
-    
-    max_models = 7  # Always show 7 models (A through G)
-    model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
-    
-    for task in tasks_to_process:
-        if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
-            continue
+    if specific_task:
+        # For individual task pages, show only that task's 7 models with model colors
+        tasks_to_process = [specific_task]
+        max_models = 7
+        model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
         
-        data = datasets[task]
-        mapping = COLUMN_MAPPINGS[task]
-        
-        averages = calculate_bert_averages_with_model_g_fix(data, mapping['bertColumns'], task, (0, 1))
-        while len(averages) < max_models:
-            averages.append(0)
-        
-        # Use model-specific colors instead of task colors
-        if specific_task:  # Individual task page - use model colors
+        for task in tasks_to_process:
+            if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
+                continue
+            
+            data = datasets[task]
+            mapping = COLUMN_MAPPINGS[task]
+            
+            averages = calculate_bert_averages_with_model_g_fix(data, mapping['bertColumns'], task, (0, 1))
+            while len(averages) < max_models:
+                averages.append(0)
+            
+            # Use model-specific colors for individual task pages
             colors = [MODEL_COLORS[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
             
             fig.add_trace(go.Bar(
@@ -390,38 +390,61 @@ def create_bert_comparison_chart(datasets, specific_task=None):
                 marker_line_color='white',
                 marker_line_width=1
             ))
-        else:  # Overview page - keep task colors for comparison
-            task_colors = {
-                'qa': 'rgba(150, 206, 180, 0.8)',
-                'summary': 'rgba(255, 159, 67, 0.8)', 
-                'classification': 'rgba(153, 102, 255, 0.8)'
-            }
+    else:
+        # For overview page, show all 21 combinations (7 models × 3 tasks)
+        all_combinations = []
+        all_scores = []
+        all_colors = []
+        
+        tasks = ['qa', 'summary', 'classification']
+        models = list(MODEL_COLORS.keys())[:7]
+        
+        task_colors = {
+            'qa': '#FF6B6B',
+            'summary': '#4ECDC4', 
+            'classification': '#45B7D1'
+        }
+        
+        for task in tasks:
+            if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
+                # If task data is missing, add zeros for all models
+                for model in models:
+                    all_combinations.append(f"{MODEL_NAMES[model]}<br>({task.upper()})")
+                    all_scores.append(0)
+                    all_colors.append(task_colors[task])
+                continue
             
-            border_colors = {
-                'qa': '#96CEB4',
-                'summary': '#FF9F43',
-                'classification': '#9966FF'
-            }
+            data = datasets[task]
+            mapping = COLUMN_MAPPINGS[task]
             
-            fig.add_trace(go.Bar(
-                name=task.capitalize(),
-                x=model_labels,
-                y=averages,
-                marker_color=task_colors.get(task, 'rgba(128, 128, 128, 0.8)'),
-                marker_line_color=border_colors.get(task, '#808080'),
-                marker_line_width=2
-            ))
+            averages = calculate_bert_averages_with_model_g_fix(data, mapping['bertColumns'], task, (0, 1))
+            while len(averages) < 7:
+                averages.append(0)
+            
+            for i, model in enumerate(models):
+                all_combinations.append(f"{MODEL_NAMES[model]}<br>({task.upper()})")
+                all_scores.append(averages[i])
+                all_colors.append(task_colors[task])
+        
+        fig.add_trace(go.Bar(
+            x=all_combinations,
+            y=all_scores,
+            marker_color=all_colors,
+            marker_line_color='white',
+            marker_line_width=1,
+            showlegend=False
+        ))
     
     fig.update_layout(
-        title="BERT F1 Scores",
-        xaxis_title="Models",
+        title="BERT F1 Scores" + (" - All Model-Task Combinations" if not specific_task else ""),
+        xaxis_title="Models" + (" & Tasks" if not specific_task else ""),
         yaxis_title="BERT F1 Score",
-        yaxis=dict(range=[0.5, None], dtick=0.1),  # 0.1 intervals instead of 0.05
-        showlegend=not specific_task,
-        height=400,
+        yaxis=dict(range=[0.5, None], dtick=0.1),
+        showlegend=bool(specific_task),
+        height=500 if not specific_task else 400,  # Taller for overview to accommodate 21 bars
         template="plotly_white",
-        font=dict(size=9),
-        xaxis=dict(tickangle=45)
+        font=dict(size=8 if not specific_task else 9),  # Smaller font for overview
+        xaxis=dict(tickangle=45 if not specific_task else 45)
     )
     
     return fig
