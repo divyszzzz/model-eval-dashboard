@@ -426,12 +426,12 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         xaxis_title="Models",
         yaxis_title="BERT F1 Score",
         yaxis=dict(
-            range=[0.5, 1.0],  # Fixed range from 0.5 to 1.0
-            dtick=0.1,
+            range=[0.5, 0.8],  # Range from 0.5 to 0.8 only
+            dtick=0.05,  # Smaller intervals for better precision
             tickmode='linear'
         ),
         showlegend=not specific_task,
-        height=400,
+        height=500,  # Increased height from 400 to 500
         template="plotly_white",
         font=dict(size=9),
         xaxis=dict(tickangle=45)
