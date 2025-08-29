@@ -359,7 +359,7 @@ def calculate_bert_averages_with_model_g_fix(df, columns, task_name, score_range
     return averages
 
 def create_bert_comparison_chart(datasets, specific_task=None):
-    """Create BERT F1 scores comparison chart as bar chart with full model names"""
+    """Create BERT F1 scores comparison chart as bar chart with full model names and exact values"""
     fig = go.Figure()
     
     tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
@@ -388,7 +388,10 @@ def create_bert_comparison_chart(datasets, specific_task=None):
                 y=averages,
                 marker_color=colors,
                 marker_line_color='white',
-                marker_line_width=1
+                marker_line_width=1,
+                text=[f'{avg:.3f}' for avg in averages],  # Show exact values with 3 decimal places
+                textposition='outside',  # Position text outside the bars
+                textfont=dict(size=10, color='black')  # Style the text
             ))
         else:  # Overview page - keep task colors for comparison
             task_colors = {
@@ -409,7 +412,10 @@ def create_bert_comparison_chart(datasets, specific_task=None):
                 y=averages,
                 marker_color=task_colors.get(task, 'rgba(128, 128, 128, 0.8)'),
                 marker_line_color=border_colors.get(task, '#808080'),
-                marker_line_width=2
+                marker_line_width=2,
+                text=[f'{avg:.3f}' for avg in averages],  # Show exact values with 3 decimal places
+                textposition='outside',  # Position text outside the bars
+                textfont=dict(size=10, color='black')  # Style the text
             ))
     
     fig.update_layout(
