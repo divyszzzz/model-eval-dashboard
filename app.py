@@ -428,7 +428,9 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         yaxis=dict(
             range=[0.5, 0.7],  # Range from 0.5 to 0.7 only
             dtick=0.05,  # Intervals of 0.05
-            tickmode='linear'
+            tickmode='linear',
+            fixedrange=True,  # Prevent auto-scaling
+            autorange=False   # Disable auto-range
         ),
         showlegend=not specific_task,
         height=500,  # Increased height from 400 to 500
