@@ -312,7 +312,10 @@ def create_judge_comparison_chart(datasets, specific_task=None):
             y=averages,
             marker_color=task_colors.get(task, 'rgba(128, 128, 128, 0.8)'),
             marker_line_color=border_colors.get(task, '#808080'),
-            marker_line_width=2
+            marker_line_width=2,
+            text=[f'{avg:.2f}' for avg in averages],  # Show exact values with 2 decimal places
+            textposition='outside',  # Position text outside the bars
+            textfont=dict(size=10, color='black')  # Style the text
         ))
     
     fig.update_layout(
@@ -483,7 +486,10 @@ def create_task_comparison_chart(datasets):
             marker_color=MODEL_COLORS[model],
             opacity=0.8,
             marker_line_color=MODEL_COLORS[model],
-            marker_line_width=2
+            marker_line_width=2,
+            text=[f'{score:.2f}' for score in task_scores],  # Show exact values with 2 decimal places
+            textposition='outside',  # Position text outside the bars
+            textfont=dict(size=10, color='black')  # Style the text
         ))
     
     fig.update_layout(
