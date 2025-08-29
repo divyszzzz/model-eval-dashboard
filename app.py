@@ -426,8 +426,8 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         xaxis_title="Models",
         yaxis_title="BERT F1 Score",
         yaxis=dict(
-            range=[0.5, 0.8],  # Range from 0.5 to 0.8 only
-            dtick=0.05,  # Smaller intervals for better precision
+            range=[0.5, 0.7],  # Range from 0.5 to 0.7 only
+            dtick=0.05,  # Intervals of 0.05
             tickmode='linear'
         ),
         showlegend=not specific_task,
