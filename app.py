@@ -359,13 +359,15 @@ def calculate_bert_averages_with_model_g_fix(df, columns, task_name, score_range
     return averages
 
 def create_bert_comparison_chart(datasets, specific_task=None):
-    """Create BERT F1 scores comparison chart as bar chart with full model names and exact values"""
+    """Create BERT F1 scores comparison chart as bar chart with full model names and exact values on Y-axis"""
     fig = go.Figure()
     
     tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
     
     max_models = 7  # Always show 7 models (A through G)
     model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
+    
+    all_averages = []  # Collect all BERT scores to create custom Y-axis ticks
     
     for task in tasks_to_process:
         if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
@@ -378,6 +380,8 @@ def create_bert_comparison_chart(datasets, specific_task=None):
         while len(averages) < max_models:
             averages.append(0)
         
+        all_averages.extend([avg for avg in averages if avg > 0])  # Only non-zero values
+        
         # Use model-specific colors instead of task colors
         if specific_task:  # Individual task page - use model colors
             colors = [MODEL_COLORS[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
@@ -388,10 +392,7 @@ def create_bert_comparison_chart(datasets, specific_task=None):
                 y=averages,
                 marker_color=colors,
                 marker_line_color='white',
-                marker_line_width=1,
-                text=[f'{avg:.3f}' for avg in averages],  # Show exact values with 3 decimal places
-                textposition='outside',  # Position text outside the bars
-                textfont=dict(size=10, color='black')  # Style the text
+                marker_line_width=1
             ))
         else:  # Overview page - keep task colors for comparison
             task_colors = {
@@ -412,23 +413,49 @@ def create_bert_comparison_chart(datasets, specific_task=None):
                 y=averages,
                 marker_color=task_colors.get(task, 'rgba(128, 128, 128, 0.8)'),
                 marker_line_color=border_colors.get(task, '#808080'),
-                marker_line_width=2,
-                text=[f'{avg:.3f}' for avg in averages],  # Show exact values with 3 decimal places
-                textposition='outside',  # Position text outside the bars
-                textfont=dict(size=10, color='black')  # Style the text
+                marker_line_width=2
             ))
     
-    fig.update_layout(
-        title="BERT F1 Scores",
-        xaxis_title="Models",
-        yaxis_title="BERT F1 Score",
-        yaxis=dict(range=[0.5, None], dtick=0.1),  # 0.1 intervals instead of 0.05
-        showlegend=not specific_task,
-        height=400,
-        template="plotly_white",
-        font=dict(size=9),
-        xaxis=dict(tickangle=45)
-    )
+    # Create custom Y-axis ticks that include both regular intervals and exact BERT scores
+    if all_averages:
+        # Regular interval ticks (every 0.1)
+        min_val = min(0.5, min(all_averages) - 0.05)
+        max_val = max(all_averages) + 0.05
+        regular_ticks = [round(x * 0.1, 1) for x in range(int(min_val * 10), int(max_val * 10) + 1)]
+        
+        # Add exact BERT score values
+        exact_ticks = [round(avg, 2) for avg in sorted(set(all_averages))]
+        
+        # Combine and sort all ticks
+        all_ticks = sorted(set(regular_ticks + exact_ticks))
+        
+        fig.update_layout(
+            title="BERT F1 Scores",
+            xaxis_title="Models",
+            yaxis_title="BERT F1 Score",
+            yaxis=dict(
+                tickvals=all_ticks,
+                ticktext=[f"{tick:.2f}" for tick in all_ticks],
+                range=[min_val, max_val]
+            ),
+            showlegend=not specific_task,
+            height=400,
+            template="plotly_white",
+            font=dict(size=9),
+            xaxis=dict(tickangle=45)
+        )
+    else:
+        fig.update_layout(
+            title="BERT F1 Scores",
+            xaxis_title="Models",
+            yaxis_title="BERT F1 Score",
+            yaxis=dict(range=[0.5, None], dtick=0.1),
+            showlegend=not specific_task,
+            height=400,
+            template="plotly_white",
+            font=dict(size=9),
+            xaxis=dict(tickangle=45)
+        )
     
     return fig
 
