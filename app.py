@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
- 
+
 # Simple authentication
 def check_password():
     """Returns True if the user had the correct password."""
@@ -675,4 +675,4 @@ if check_password():
     
     else:
         st.warning("No data files found. Please ensure the following files exist in the data folder:")
-        st.info("• qa_data_judge_7models_qna_1to5.xlsx\n• summary_data_judge_7models_summary_1to5.xlsx\n• classification_data_judge_7models_classification_1to5.xlsx")
+        st.info("• data/qa_data.xlsx\n• data/summary_data.xlsx\n• data/classification_data.xlsx")
