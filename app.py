@@ -149,13 +149,14 @@ if check_password():
     </style>
     """, unsafe_allow_html=True)
 
-    # Model configurations - ONLY 5 MODELS (removed MODEL E and MODEL G)
+    # Model configurations - NOW 6 MODELS INCLUDING NEW V2_BASE_CPT_RESIDUAL_DPO_RUN1
     MODEL_COLORS = {
         'MODEL A': '#FF6B6B',
         'MODEL B': '#4ECDC4', 
         'MODEL C': '#45B7D1',
         'MODEL D': '#FECA57',
-        'MODEL F': '#8B5CF6'
+        'MODEL F': '#8B5CF6',
+        'MODEL J': '#32CD32'  # New model - Light Green
     }
 
     MODEL_NAMES = {
@@ -163,66 +164,73 @@ if check_password():
         'MODEL B': 'V1_INSTRUCT_SFT_CK34',
         'MODEL C': 'V2_BASE_CPT_SFT_CK21',
         'MODEL D': 'V2_BASE_CPT_SFT_DPO_RUN1',
-        'MODEL F': 'V2_BASE_CPT_RESIDUAL'
+        'MODEL F': 'V2_BASE_CPT_RESIDUAL',
+        'MODEL J': 'V2_BASE_CPT_RESIDUAL_DPO_RUN1'  # New model
     }
 
-    # Column mappings - REMOVED MODEL E and MODEL G columns
+    # Column mappings - UPDATED FOR NEW 6-MODEL STRUCTURE
     COLUMN_MAPPINGS = {
         'qa': {
             'judgeColumns': [
-                'Judge_Model_A_Score',
-                'Judge_Model_B_Score',
-                'Judge_Model_C_Score',
-                'Judge_Model_F_Score',
-                'Judge_Model_H_Score'
+                'Judge_Model_A_Score_New',  # New judge scores for QA
+                'Judge_Model_B_Score_New',
+                'Judge_Model_C_Score_New',
+                'Judge_Model_H_Score_New',  # This maps to MODEL D
+                'Judge_Model_F_Score_New',
+                'Judge_Model_J_Score_New'   # New model
             ],
             'bertColumns': [
-                'f1_base',
-                'f1_V34',
-                'bertscore_f1_v21',
-                'bertscore_f1_v2_dpo_run1',
-                'bertscore_f1_v2_cpt_residual'
+                'f1_base',                                          # MODEL A
+                'f1_V34',                                          # MODEL B  
+                'bertscore_f1_v21',                                # MODEL C
+                'bertscore_f1_v2_dpo_run1',                        # MODEL D
+                'bertscore_f1_v2_cpt_residual',                    # MODEL F
+                'bertscore_f1_V2_BASE_CPT_RESIDUAL_DPO_RUN1'       # MODEL J (New)
             ]
         },
         'summary': {
             'judgeColumns': [
-                'Judge_Model_A_Score',
-                'Judge_Model_B_Score',
-                'Judge_Model_C_Score',
-                'Judge_Model_F_Score',
-                'Judge_Model_H_Score'
+                'Judge_Model_A_Score_New',  # New judge scores for summary
+                'Judge_Model_B_Score_New',
+                'Judge_Model_C_Score_New',
+                'Judge_Model_H_Score_New',  # This maps to MODEL D
+                'Judge_Model_F_Score_New',
+                'Judge_Model_J_Score_New'   # New model
             ],
             'bertColumns': [
-                'instruct_bertscore_f1',
-                'finetune_bertscore_f1',
-                'sft_v21_bertscore_f1',
-                'bertscore_f1_v2_dpo_run1',
-                'bertscore_f1_v2_cpt_residual'
+                'instruct_bertscore_f1',                           # MODEL A
+                'finetune_bertscore_f1',                           # MODEL B
+                'sft_v21_bertscore_f1',                            # MODEL C
+                'bertscore_f1_v2_dpo_run1',                        # MODEL D
+                'bertscore_f1_v2_cpt_residual',                    # MODEL F
+                'bertscore_f1_V2_BASE_CPT_RESIDUAL_DPO_RUN1'       # MODEL J (New)
             ]
         },
         'classification': {
             'judgeColumns': [
-                'Judge_Model_A_Score',
-                'Judge_Model_B_Score',
-                'Judge_Model_C_Score',
-                'Judge_Model_F_Score',
-                'Judge_Model_H_Score'
+                'Judge_Model_A_Score_New',  # New judge scores for classification
+                'Judge_Model_B_Score_New',
+                'Judge_Model_C_Score_New',
+                'Judge_Model_H_Score_New',  # This maps to MODEL D
+                'Judge_Model_F_Score_New',
+                'Judge_Model_J_Score_New'   # New model
             ],
             'bertColumns': [
-                'instruct_bertscore_f1',
-                'finetune_bertscore_f1',
-                'sft_v21_bertscore_f1',
-                'bertscore_f1_v2_dpo_run1',
-                'bertscore_f1_v2_cpt_residual'
+                'instruct_bertscore_f1',                           # MODEL A
+                'finetune_bertscore_f1',                           # MODEL B
+                'sft_v21_bertscore_f1',                            # MODEL C
+                'bertscore_f1_v2_dpo_run1',                        # MODEL D
+                'bertscore_f1_v2_cpt_residual',                    # MODEL F
+                'bertscore_f1_V2_BASE_CPT_RESIDUAL_DPO_RUN1'       # MODEL J (New)
             ]
         }
     }
 
-    # Data file paths
+    # Data file paths - Updated to use new files
     DATA_FILES = {
-        'qa': 'data/qa_data.xlsx',
-        'summary': 'data/summary_data.xlsx',
-        'classification': 'data/classification_data.xlsx'
+        'qa': 'qa_data_judge_7models_qna_1to5.xlsx',
+        'summary': 'summary_data_judge_7models_summary_1to5.xlsx',
+        'classification': 'classification_data_judge_7models_classification_1to5.xlsx'
     }
 
     @st.cache_data(ttl=300)  # Cache for 5 minutes
@@ -266,8 +274,8 @@ if check_password():
             
             averages.append(valid_scores.mean() if len(valid_scores) > 0 else 0)
         
-        # Ensure we always have 5 models for consistent display
-        while len(averages) < 5:
+        # Ensure we always have 6 models for consistent display
+        while len(averages) < 6:
             averages.append(0)
         
         return averages
@@ -316,7 +324,7 @@ if check_password():
         
         tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
         
-        max_models = 5  # Always show 5 models (A, B, C, D, F)
+        max_models = 6  # Always show 6 models (A, B, C, D, F, J)
         model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
         
         for task in tasks_to_process:
@@ -386,8 +394,8 @@ if check_password():
             avg_score = valid_scores.mean() if len(valid_scores) > 0 else 0
             averages.append(avg_score)
         
-        # Ensure we always have 5 models for consistent display
-        while len(averages) < 5:
+        # Ensure we always have 6 models for consistent display
+        while len(averages) < 6:
             averages.append(0)
         
         return averages
@@ -398,7 +406,7 @@ if check_password():
         
         tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
         
-        max_models = 5  # Always show 5 models (A, B, C, D, F)
+        max_models = 6  # Always show 6 models (A, B, C, D, F, J)
         model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
         
         for task in tasks_to_process:
@@ -480,7 +488,7 @@ if check_password():
         if not valid_tasks:
             return fig
         
-        max_models = 5  # Always show 5 models (A, B, C, D, F)
+        max_models = 6  # Always show 6 models (A, B, C, D, F, J)
         models = list(MODEL_COLORS.keys())[:max_models]
         
         for index, model in enumerate(models):
@@ -540,7 +548,7 @@ if check_password():
     <div class="main-header">
         <h1>Multi-Model Evaluation Dashboard</h1>
         <p>Comprehensive Analysis with Judge Scores (1-5 Scale) & BERT F1 Scores</p>
-        <p><em>Evaluated for QnA, Summary and Classification Tasks on 5 models</em></p>
+        <p><em>Evaluated for QnA, Summary and Classification Tasks on 6 models</em></p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -667,4 +675,4 @@ if check_password():
     
     else:
         st.warning("No data files found. Please ensure the following files exist in the data folder:")
-        st.info("• data/qa_data.xlsx\n• data/summary_data.xlsx\n• data/classification_data.xlsx")
+        st.info("• qa_data_judge_7models_qna_1to5.xlsx\n• summary_data_judge_7models_summary_1to5.xlsx\n• classification_data_judge_7models_classification_1to5.xlsx")
