@@ -149,15 +149,13 @@ if check_password():
     </style>
     """, unsafe_allow_html=True)
 
-    # Model configurations
+    # Model configurations - ONLY 5 MODELS (removed MODEL E and MODEL G)
     MODEL_COLORS = {
         'MODEL A': '#FF6B6B',
         'MODEL B': '#4ECDC4', 
         'MODEL C': '#45B7D1',
         'MODEL D': '#FECA57',
-        'MODEL E': '#FF9FF3',
-        'MODEL F': '#8B5CF6',
-        'MODEL G': '#F59E0B'
+        'MODEL F': '#8B5CF6'
     }
 
     MODEL_NAMES = {
@@ -165,12 +163,10 @@ if check_password():
         'MODEL B': 'V1_INSTRUCT_SFT_CK34',
         'MODEL C': 'V2_BASE_CPT_SFT_CK21',
         'MODEL D': 'V2_BASE_CPT_SFT_DPO_RUN1',
-        'MODEL E': 'V2_BASE_CPT_SFT_DPO_RUN2',
-        'MODEL F': 'V2_BASE_CPT_RESIDUAL',
-        'MODEL G': 'V2_BASE_CPT_RESIDUAL_CONCISE'
+        'MODEL F': 'V2_BASE_CPT_RESIDUAL'
     }
 
-    # Column mappings
+    # Column mappings - REMOVED MODEL E and MODEL G columns
     COLUMN_MAPPINGS = {
         'qa': {
             'judgeColumns': [
@@ -178,18 +174,14 @@ if check_password():
                 'Judge_Model_B_Score',
                 'Judge_Model_C_Score',
                 'Judge_Model_F_Score',
-                'Judge_Model_G_Score',
-                'Judge_Model_H_Score',
-                'Judge_Model_I_Score'
+                'Judge_Model_H_Score'
             ],
             'bertColumns': [
                 'f1_base',
                 'f1_V34',
                 'bertscore_f1_v21',
                 'bertscore_f1_v2_dpo_run1',
-                'bertscore_f1_v2_dpo_run2',
-                'bertscore_f1_v2_cpt_residual',
-                'bertscore_f1_V2_BASE_CPT_RESIDUAL_CONCISE_qa'
+                'bertscore_f1_v2_cpt_residual'
             ]
         },
         'summary': {
@@ -198,7 +190,6 @@ if check_password():
                 'Judge_Model_B_Score',
                 'Judge_Model_C_Score',
                 'Judge_Model_F_Score',
-                'Judge_Model_G_Score',
                 'Judge_Model_H_Score'
             ],
             'bertColumns': [
@@ -206,7 +197,6 @@ if check_password():
                 'finetune_bertscore_f1',
                 'sft_v21_bertscore_f1',
                 'bertscore_f1_v2_dpo_run1',
-                'bertscore_f1_v2_dpo_run2',
                 'bertscore_f1_v2_cpt_residual'
             ]
         },
@@ -216,7 +206,6 @@ if check_password():
                 'Judge_Model_B_Score',
                 'Judge_Model_C_Score',
                 'Judge_Model_F_Score',
-                'Judge_Model_G_Score',
                 'Judge_Model_H_Score'
             ],
             'bertColumns': [
@@ -224,7 +213,6 @@ if check_password():
                 'finetune_bertscore_f1',
                 'sft_v21_bertscore_f1',
                 'bertscore_f1_v2_dpo_run1',
-                'bertscore_f1_v2_dpo_run2',
                 'bertscore_f1_v2_cpt_residual'
             ]
         }
@@ -263,7 +251,7 @@ if check_password():
         return datasets, file_status
 
     def calculate_averages(df, columns, score_range=(1, 5), task_name=None):
-        """Calculate average scores with proper filtering and Model G fix"""
+        """Calculate average scores with proper filtering"""
         averages = []
         for col in columns:
             if not col or col not in df.columns:
@@ -278,19 +266,14 @@ if check_password():
             
             averages.append(valid_scores.mean() if len(valid_scores) > 0 else 0)
         
-        # Ensure we always have 7 models for consistent display
-        while len(averages) < 7:
+        # Ensure we always have 5 models for consistent display
+        while len(averages) < 5:
             averages.append(0)
-        
-        # Fix for Model G (index 6) in classification/summary - use Model F's score
-        if task_name in ['classification', 'summary'] and score_range == (1, 5):
-            if len(averages) >= 6 and averages[5] > 0:  # Model F has a valid score
-                averages[6] = averages[5]  # Set Model G to Model F's score
         
         return averages
 
     def calculate_best_overall_model(datasets):
-        """Calculate the best overall model across all tasks (consistent across all pages)"""
+        """Calculate the best overall model across all tasks"""
         model_scores = {model: [] for model in MODEL_COLORS.keys()}
         
         # Use all available tasks for consistent calculation
@@ -333,7 +316,7 @@ if check_password():
         
         tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
         
-        max_models = 7  # Always show 7 models (A through G)
+        max_models = 5  # Always show 5 models (A, B, C, D, F)
         model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
         
         for task in tasks_to_process:
@@ -385,8 +368,8 @@ if check_password():
         
         return fig
 
-    def calculate_bert_averages_with_model_g_fix(df, columns, task_name, score_range=(0, 1)):
-        """Calculate BERT averages with Model G fix for classification/summary"""
+    def calculate_bert_averages(df, columns, task_name, score_range=(0, 1)):
+        """Calculate BERT averages"""
         averages = []
         
         for i, col in enumerate(columns):
@@ -403,14 +386,9 @@ if check_password():
             avg_score = valid_scores.mean() if len(valid_scores) > 0 else 0
             averages.append(avg_score)
         
-        # Ensure we always have 7 models for consistent display
-        while len(averages) < 7:
+        # Ensure we always have 5 models for consistent display
+        while len(averages) < 5:
             averages.append(0)
-        
-        # Fix for Model G (index 6) in classification/summary - use Model F's score
-        if task_name in ['classification', 'summary']:
-            if len(averages) >= 6 and averages[5] > 0:  # Model F has a valid score
-                averages[6] = averages[5]  # Set Model G to Model F's score
         
         return averages
 
@@ -420,7 +398,7 @@ if check_password():
         
         tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
         
-        max_models = 7  # Always show 7 models (A through G)
+        max_models = 5  # Always show 5 models (A, B, C, D, F)
         model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
         
         for task in tasks_to_process:
@@ -430,7 +408,7 @@ if check_password():
             data = datasets[task]
             mapping = COLUMN_MAPPINGS[task]
             
-            averages = calculate_bert_averages_with_model_g_fix(data, mapping['bertColumns'], task, (0, 1))
+            averages = calculate_bert_averages(data, mapping['bertColumns'], task, (0, 1))
             while len(averages) < max_models:
                 averages.append(0)
             
@@ -502,7 +480,7 @@ if check_password():
         if not valid_tasks:
             return fig
         
-        max_models = 7  # Always show 7 models (A through G)
+        max_models = 5  # Always show 5 models (A, B, C, D, F)
         models = list(MODEL_COLORS.keys())[:max_models]
         
         for index, model in enumerate(models):
@@ -523,16 +501,6 @@ if check_password():
                             avg_score = 0
                     else:
                         avg_score = 0
-                    
-                    # Fix for Model G in classification/summary - use Model F's score
-                    if index == 6 and task in ['classification', 'summary']:  # Model G
-                        # Find Model F's score (index 5)
-                        if len(mapping['judgeColumns']) > 5 and mapping['judgeColumns'][5]:
-                            col_f = mapping['judgeColumns'][5]
-                            if col_f in data.columns:
-                                numeric_series_f = pd.to_numeric(data[col_f], errors='coerce')
-                                valid_scores_f = numeric_series_f[(numeric_series_f >= 1) & (numeric_series_f <= 5)].dropna()
-                                avg_score = valid_scores_f.mean() if len(valid_scores_f) > 0 else 0
                 else:
                     avg_score = 0
                     
@@ -572,7 +540,7 @@ if check_password():
     <div class="main-header">
         <h1>Multi-Model Evaluation Dashboard</h1>
         <p>Comprehensive Analysis with Judge Scores (1-5 Scale) & BERT F1 Scores</p>
-        <p><em>Evaluated for QnA, Summary and Classification Tasks on 7 models</em></p>
+        <p><em>Evaluated for QnA, Summary and Classification Tasks on 5 models</em></p>
     </div>
     """, unsafe_allow_html=True)
     
