@@ -19,8 +19,8 @@ def check_password():
     
     def password_entered():
         """Checks whether a password entered by the user is correct."""
-        if (st.session_state["username"] == "dashboard_user" and 
-            st.session_state["password"] == "ModelEval2024!"):
+        if (st.session_state["username"] == "FIRSTSOURCE123" and 
+            st.session_state["password"] == "FIRSTSOURCE123"):
             st.session_state["password_correct"] = True
             del st.session_state["password"]  # Don't store password
             del st.session_state["username"]  # Don't store username
@@ -690,11 +690,10 @@ if check_password():
         
         for i, (model, name) in enumerate(models_list):
             with col1 if i % 2 == 0 else col2:
-                extra_text = " (QnA only)" if model == 'MODEL G' else ""
                 st.markdown(f"""
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: {MODEL_COLORS[model]};"></div>
-                    <span><strong>{model}:</strong> {name}{extra_text}</span>
+                    <span><strong>{model}:</strong> {name}</span>
                 </div>
                 """, unsafe_allow_html=True)
     
