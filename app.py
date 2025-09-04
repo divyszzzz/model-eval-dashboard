@@ -13,400 +13,350 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS
-st.markdown("""
-<style>
-    .main > div {
-        padding-top: 2rem;
-    }
+# Simple authentication
+def check_password():
+    """Returns True if the user had the correct password."""
     
-    .main-header {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-        text-align: center;
-        color: white;
-    }
-    
-    .main-header h1 {
-        font-size: 2.5rem;
-        margin-bottom: 10px;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    .main-header p {
-        font-size: 1.2rem;
-        opacity: 0.9;
-    }
-    
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem;
-        border-radius: 15px;
-        text-align: center;
-        color: white;
-        margin-bottom: 1rem;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-    }
-    
-    .metric-value {
-        font-size: 2rem;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    
-    .metric-label {
-        font-size: 0.9rem;
-        opacity: 0.8;
-    }
-    
-    .data-status {
-        background: rgba(40, 167, 69, 0.1);
-        padding: 1rem;
-        border-radius: 10px;
-        border: 2px solid rgba(40, 167, 69, 0.3);
-        margin-bottom: 2rem;
-    }
-    
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 15px;
-        background: rgba(255,255,255,0.8);
-        border-radius: 20px;
-        border: 1px solid #ddd;
-        font-size: 0.9rem;
-        margin-bottom: 10px;
-    }
-    
-    .legend-color {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 2px solid white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    
-    /* Hide streamlit menu */
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
-
-# Model configurations
-MODEL_COLORS = {
-    'MODEL A': '#FF6B6B',
-    'MODEL B': '#4ECDC4', 
-    'MODEL C': '#45B7D1',
-    'MODEL D': '#FECA57',
-    'MODEL E': '#FF9FF3',
-    'MODEL F': '#8B5CF6',
-    'MODEL G': '#F59E0B'
-}
-
-MODEL_NAMES = {
-    'MODEL A': 'LLAMA 3.1 8B INSTRUCT',
-    'MODEL B': 'V1_INSTRUCT_SFT_CK34',
-    'MODEL C': 'V2_BASE_CPT_SFT_CK21',
-    'MODEL D': 'V2_BASE_CPT_SFT_DPO_RUN1',
-    'MODEL E': 'V2_BASE_CPT_SFT_DPO_RUN2',
-    'MODEL F': 'V2_BASE_CPT_RESIDUAL',
-    'MODEL G': 'V2_BASE_CPT_RESIDUAL_CONCISE'
-}
-
-# Column mappings
-COLUMN_MAPPINGS = {
-    'qa': {
-        'judgeColumns': [
-            'Judge_Model_A_Score',
-            'Judge_Model_B_Score',
-            'Judge_Model_C_Score',
-            'Judge_Model_F_Score',
-            'Judge_Model_G_Score',
-            'Judge_Model_H_Score',
-            'Judge_Model_I_Score'
-        ],
-        'bertColumns': [
-            'f1_base',
-            'f1_V34',
-            'bertscore_f1_v21',
-            'bertscore_f1_v2_dpo_run1',
-            'bertscore_f1_v2_dpo_run2',
-            'bertscore_f1_v2_cpt_residual',
-            'bertscore_f1_V2_BASE_CPT_RESIDUAL_CONCISE_qa'
-        ]
-    },
-    'summary': {
-        'judgeColumns': [
-            'Judge_Model_A_Score',
-            'Judge_Model_B_Score',
-            'Judge_Model_C_Score',
-            'Judge_Model_F_Score',
-            'Judge_Model_G_Score',
-            'Judge_Model_H_Score'
-        ],
-        'bertColumns': [
-            'instruct_bertscore_f1',
-            'finetune_bertscore_f1',
-            'sft_v21_bertscore_f1',
-            'bertscore_f1_v2_dpo_run1',
-            'bertscore_f1_v2_dpo_run2',
-            'bertscore_f1_v2_cpt_residual'
-        ]
-    },
-    'classification': {
-        'judgeColumns': [
-            'Judge_Model_A_Score',
-            'Judge_Model_B_Score',
-            'Judge_Model_C_Score',
-            'Judge_Model_F_Score',
-            'Judge_Model_G_Score',
-            'Judge_Model_H_Score'
-        ],
-        'bertColumns': [
-            'instruct_bertscore_f1',
-            'finetune_bertscore_f1',
-            'sft_v21_bertscore_f1',
-            'bertscore_f1_v2_dpo_run1',
-            'bertscore_f1_v2_dpo_run2',
-            'bertscore_f1_v2_cpt_residual'
-        ]
-    }
-}
-
-# Data file paths
-DATA_FILES = {
-    'qa': 'data/qa_data.xlsx',
-    'summary': 'data/summary_data.xlsx',
-    'classification': 'data/classification_data.xlsx'
-}
-
-@st.cache_data(ttl=300)  # Cache for 5 minutes
-def load_data_from_server():
-    """Load data from server files"""
-    datasets = {}
-    file_status = {}
-    
-    for task, file_path in DATA_FILES.items():
-        try:
-            if os.path.exists(file_path):
-                df = pd.read_excel(file_path)
-                datasets[task] = df
-                file_status[task] = {
-                    'status': 'success',
-                    'rows': len(df),
-                    'last_modified': datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
-                }
-            else:
-                datasets[task] = None
-                file_status[task] = {'status': 'missing', 'rows': 0, 'last_modified': 'N/A'}
-        except Exception as e:
-            datasets[task] = None
-            file_status[task] = {'status': 'error', 'error': str(e), 'rows': 0, 'last_modified': 'N/A'}
-    
-    return datasets, file_status
-
-def calculate_averages(df, columns, score_range=(1, 5), task_name=None):
-    """Calculate average scores with proper filtering and Model G fix"""
-    averages = []
-    for col in columns:
-        if not col or col not in df.columns:
-            averages.append(0)
-            continue
-            
-        numeric_series = pd.to_numeric(df[col], errors='coerce')
-        if score_range == (1, 5):
-            valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if (st.session_state["username"] == "dashboard_user" and 
+            st.session_state["password"] == "ModelEval2024!"):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password
+            del st.session_state["username"]  # Don't store username
         else:
-            valid_scores = numeric_series[(numeric_series >= 0) & (numeric_series <= 1)].dropna()
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # First run, show login form
+        st.markdown("## 🔐 Dashboard Login")
+        st.markdown("Please enter your credentials to access the dashboard:")
         
-        averages.append(valid_scores.mean() if len(valid_scores) > 0 else 0)
-    
-    # Ensure we always have 7 models for consistent display
-    while len(averages) < 7:
-        averages.append(0)
-    
-    # Fix for Model G (index 6) in classification/summary - use Model F's score
-    if task_name in ['classification', 'summary'] and score_range == (1, 5):
-        if len(averages) >= 6 and averages[5] > 0:  # Model F has a valid score
-            averages[6] = averages[5]  # Set Model G to Model F's score
-    
-    return averages
+        with st.form("login_form"):
+            st.text_input("Username", key="username")
+            st.text_input("Password", type="password", key="password")
+            submit_button = st.form_submit_button("Login", on_click=password_entered)
+        
+        st.info("Contact your administrator for access credentials.")
+        return False
+        
+    elif not st.session_state["password_correct"]:
+        # Password incorrect, show login form again
+        st.markdown("## 🔐 Dashboard Login")
+        st.error("Username or password incorrect. Please try again.")
+        
+        with st.form("login_form"):
+            st.text_input("Username", key="username")
+            st.text_input("Password", type="password", key="password")
+            submit_button = st.form_submit_button("Login", on_click=password_entered)
+        
+        st.info("Contact your administrator for access credentials.")
+        return False
+        
+    else:
+        # Password correct
+        return True
 
-def calculate_best_overall_model(datasets):
-    """Calculate the best overall model across all tasks (consistent across all pages)"""
-    model_scores = {model: [] for model in MODEL_COLORS.keys()}
-    
-    # Use all available tasks for consistent calculation
-    for task, data in datasets.items():
-        if data is None or data.empty:
-            continue
-            
-        mapping = COLUMN_MAPPINGS.get(task)
-        if not mapping:
-            continue
+# Check authentication first
+if check_password():
+    # Add logout button in sidebar
+    with st.sidebar:
+        st.markdown("### Welcome!")
+        if st.button("🚪 Logout"):
+            st.session_state["password_correct"] = False
+            st.rerun()
 
-        for index, col in enumerate(mapping['judgeColumns']):
-            if not col or index >= len(MODEL_COLORS):
+    # Custom CSS
+    st.markdown("""
+    <style>
+        .main > div {
+            padding-top: 2rem;
+        }
+        
+        .main-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            text-align: center;
+            color: white;
+        }
+        
+        .main-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .main-header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            margin-bottom: 1rem;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .data-status {
+            background: rgba(40, 167, 69, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            border: 2px solid rgba(40, 167, 69, 0.3);
+            margin-bottom: 2rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 20px;
+            border: 1px solid #ddd;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        
+        .legend-color {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        /* Hide streamlit menu */
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Model configurations
+    MODEL_COLORS = {
+        'MODEL A': '#FF6B6B',
+        'MODEL B': '#4ECDC4', 
+        'MODEL C': '#45B7D1',
+        'MODEL D': '#FECA57',
+        'MODEL E': '#FF9FF3',
+        'MODEL F': '#8B5CF6',
+        'MODEL G': '#F59E0B'
+    }
+
+    MODEL_NAMES = {
+        'MODEL A': 'LLAMA 3.1 8B INSTRUCT',
+        'MODEL B': 'V1_INSTRUCT_SFT_CK34',
+        'MODEL C': 'V2_BASE_CPT_SFT_CK21',
+        'MODEL D': 'V2_BASE_CPT_SFT_DPO_RUN1',
+        'MODEL E': 'V2_BASE_CPT_SFT_DPO_RUN2',
+        'MODEL F': 'V2_BASE_CPT_RESIDUAL',
+        'MODEL G': 'V2_BASE_CPT_RESIDUAL_CONCISE'
+    }
+
+    # Column mappings
+    COLUMN_MAPPINGS = {
+        'qa': {
+            'judgeColumns': [
+                'Judge_Model_A_Score',
+                'Judge_Model_B_Score',
+                'Judge_Model_C_Score',
+                'Judge_Model_F_Score',
+                'Judge_Model_G_Score',
+                'Judge_Model_H_Score',
+                'Judge_Model_I_Score'
+            ],
+            'bertColumns': [
+                'f1_base',
+                'f1_V34',
+                'bertscore_f1_v21',
+                'bertscore_f1_v2_dpo_run1',
+                'bertscore_f1_v2_dpo_run2',
+                'bertscore_f1_v2_cpt_residual',
+                'bertscore_f1_V2_BASE_CPT_RESIDUAL_CONCISE_qa'
+            ]
+        },
+        'summary': {
+            'judgeColumns': [
+                'Judge_Model_A_Score',
+                'Judge_Model_B_Score',
+                'Judge_Model_C_Score',
+                'Judge_Model_F_Score',
+                'Judge_Model_G_Score',
+                'Judge_Model_H_Score'
+            ],
+            'bertColumns': [
+                'instruct_bertscore_f1',
+                'finetune_bertscore_f1',
+                'sft_v21_bertscore_f1',
+                'bertscore_f1_v2_dpo_run1',
+                'bertscore_f1_v2_dpo_run2',
+                'bertscore_f1_v2_cpt_residual'
+            ]
+        },
+        'classification': {
+            'judgeColumns': [
+                'Judge_Model_A_Score',
+                'Judge_Model_B_Score',
+                'Judge_Model_C_Score',
+                'Judge_Model_F_Score',
+                'Judge_Model_G_Score',
+                'Judge_Model_H_Score'
+            ],
+            'bertColumns': [
+                'instruct_bertscore_f1',
+                'finetune_bertscore_f1',
+                'sft_v21_bertscore_f1',
+                'bertscore_f1_v2_dpo_run1',
+                'bertscore_f1_v2_dpo_run2',
+                'bertscore_f1_v2_cpt_residual'
+            ]
+        }
+    }
+
+    # Data file paths
+    DATA_FILES = {
+        'qa': 'data/qa_data.xlsx',
+        'summary': 'data/summary_data.xlsx',
+        'classification': 'data/classification_data.xlsx'
+    }
+
+    @st.cache_data(ttl=300)  # Cache for 5 minutes
+    def load_data_from_server():
+        """Load data from server files"""
+        datasets = {}
+        file_status = {}
+        
+        for task, file_path in DATA_FILES.items():
+            try:
+                if os.path.exists(file_path):
+                    df = pd.read_excel(file_path)
+                    datasets[task] = df
+                    file_status[task] = {
+                        'status': 'success',
+                        'rows': len(df),
+                        'last_modified': datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                else:
+                    datasets[task] = None
+                    file_status[task] = {'status': 'missing', 'rows': 0, 'last_modified': 'N/A'}
+            except Exception as e:
+                datasets[task] = None
+                file_status[task] = {'status': 'error', 'error': str(e), 'rows': 0, 'last_modified': 'N/A'}
+        
+        return datasets, file_status
+
+    def calculate_averages(df, columns, score_range=(1, 5), task_name=None):
+        """Calculate average scores with proper filtering and Model G fix"""
+        averages = []
+        for col in columns:
+            if not col or col not in df.columns:
+                averages.append(0)
                 continue
                 
-            model_key = list(MODEL_COLORS.keys())[index]
-            
-            if col in data.columns:
-                numeric_series = pd.to_numeric(data[col], errors='coerce')
+            numeric_series = pd.to_numeric(df[col], errors='coerce')
+            if score_range == (1, 5):
                 valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
+            else:
+                valid_scores = numeric_series[(numeric_series >= 0) & (numeric_series <= 1)].dropna()
+            
+            averages.append(valid_scores.mean() if len(valid_scores) > 0 else 0)
+        
+        # Ensure we always have 7 models for consistent display
+        while len(averages) < 7:
+            averages.append(0)
+        
+        # Fix for Model G (index 6) in classification/summary - use Model F's score
+        if task_name in ['classification', 'summary'] and score_range == (1, 5):
+            if len(averages) >= 6 and averages[5] > 0:  # Model F has a valid score
+                averages[6] = averages[5]  # Set Model G to Model F's score
+        
+        return averages
+
+    def calculate_best_overall_model(datasets):
+        """Calculate the best overall model across all tasks (consistent across all pages)"""
+        model_scores = {model: [] for model in MODEL_COLORS.keys()}
+        
+        # Use all available tasks for consistent calculation
+        for task, data in datasets.items():
+            if data is None or data.empty:
+                continue
                 
-                if len(valid_scores) > 0:
-                    model_scores[model_key].extend(valid_scores.tolist())
+            mapping = COLUMN_MAPPINGS.get(task)
+            if not mapping:
+                continue
 
-    best_model = 'MODEL A'
-    best_score = 0
+            for index, col in enumerate(mapping['judgeColumns']):
+                if not col or index >= len(MODEL_COLORS):
+                    continue
+                    
+                model_key = list(MODEL_COLORS.keys())[index]
+                
+                if col in data.columns:
+                    numeric_series = pd.to_numeric(data[col], errors='coerce')
+                    valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
+                    
+                    if len(valid_scores) > 0:
+                        model_scores[model_key].extend(valid_scores.tolist())
 
-    for model, scores in model_scores.items():
-        if len(scores) > 0:
-            avg_score = sum(scores) / len(scores)
-            if avg_score > best_score:
-                best_score = avg_score
-                best_model = model
+        best_model = 'MODEL A'
+        best_score = 0
 
-    return {'model': best_model, 'score': best_score}
+        for model, scores in model_scores.items():
+            if len(scores) > 0:
+                avg_score = sum(scores) / len(scores)
+                if avg_score > best_score:
+                    best_score = avg_score
+                    best_model = model
 
-def create_judge_comparison_chart(datasets, specific_task=None):
-    """Create judge scores comparison chart with full model names"""
-    fig = go.Figure()
-    
-    tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
-    
-    max_models = 7  # Always show 7 models (A through G)
-    model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
-    
-    for task in tasks_to_process:
-        if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
-            continue
-        
-        data = datasets[task]
-        mapping = COLUMN_MAPPINGS[task]
-        
-        averages = calculate_averages(data, mapping['judgeColumns'], (1, 5), task)
-        while len(averages) < max_models:
-            averages.append(0)
-        
-        task_colors = {
-            'qa': 'rgba(255, 107, 107, 0.8)',
-            'summary': 'rgba(78, 205, 196, 0.8)',
-            'classification': 'rgba(69, 183, 209, 0.8)'
-        }
-        
-        border_colors = {
-            'qa': '#FF6B6B',
-            'summary': '#4ECDC4',
-            'classification': '#45B7D1'
-        }
-        
-        fig.add_trace(go.Bar(
-            name=task.capitalize(),
-            x=model_labels,
-            y=averages,
-            marker_color=task_colors.get(task, 'rgba(128, 128, 128, 0.8)'),
-            marker_line_color=border_colors.get(task, '#808080'),
-            marker_line_width=2,
-            text=[f'{avg:.2f}' for avg in averages],  # Show exact values with 2 decimal places
-            textposition='outside',  # Position text outside the bars
-            textfont=dict(size=10, color='black')  # Style the text
-        ))
-    
-    fig.update_layout(
-        title="Judge Scores Comparison (1-5 Scale)",
-        xaxis_title="Models",
-        yaxis_title="Judge Score (1-5 Scale)",
-        yaxis=dict(range=[0, 5], dtick=0.5),
-        showlegend=not specific_task,
-        height=400,
-        template="plotly_white",
-        font=dict(size=9),
-        xaxis=dict(tickangle=45)
-    )
-    
-    return fig
+        return {'model': best_model, 'score': best_score}
 
-def calculate_bert_averages_with_model_g_fix(df, columns, task_name, score_range=(0, 1)):
-    """Calculate BERT averages with Model G fix for classification/summary"""
-    averages = []
-    
-    for i, col in enumerate(columns):
-        if not col or col not in df.columns:
-            averages.append(0)
-            continue
+    def create_judge_comparison_chart(datasets, specific_task=None):
+        """Create judge scores comparison chart with full model names"""
+        fig = go.Figure()
+        
+        tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
+        
+        max_models = 7  # Always show 7 models (A through G)
+        model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
+        
+        for task in tasks_to_process:
+            if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
+                continue
             
-        numeric_series = pd.to_numeric(df[col], errors='coerce')
-        if score_range == (1, 5):
-            valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
-        else:
-            valid_scores = numeric_series[(numeric_series >= 0) & (numeric_series <= 1)].dropna()
-        
-        avg_score = valid_scores.mean() if len(valid_scores) > 0 else 0
-        averages.append(avg_score)
-    
-    # Ensure we always have 7 models for consistent display
-    while len(averages) < 7:
-        averages.append(0)
-    
-    # Fix for Model G (index 6) in classification/summary - use Model F's score
-    if task_name in ['classification', 'summary']:
-        if len(averages) >= 6 and averages[5] > 0:  # Model F has a valid score
-            averages[6] = averages[5]  # Set Model G to Model F's score
-    
-    return averages
-
-def create_bert_comparison_chart(datasets, specific_task=None):
-    """Create BERT F1 scores comparison chart as bar chart with full model names and exact values"""
-    fig = go.Figure()
-    
-    tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
-    
-    max_models = 7  # Always show 7 models (A through G)
-    model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
-    
-    for task in tasks_to_process:
-        if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
-            continue
-        
-        data = datasets[task]
-        mapping = COLUMN_MAPPINGS[task]
-        
-        averages = calculate_bert_averages_with_model_g_fix(data, mapping['bertColumns'], task, (0, 1))
-        while len(averages) < max_models:
-            averages.append(0)
-        
-        # Use model-specific colors instead of task colors
-        if specific_task:  # Individual task page - use model colors
-            colors = [MODEL_COLORS[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
+            data = datasets[task]
+            mapping = COLUMN_MAPPINGS[task]
             
-            fig.add_trace(go.Bar(
-                name=task.capitalize(),
-                x=model_labels,
-                y=averages,
-                marker_color=colors,
-                marker_line_color='white',
-                marker_line_width=1,
-                text=[f'{avg:.2f}' for avg in averages],  # Show exact values with 2 decimal places
-                textposition='outside',  # Position text outside the bars
-                textfont=dict(size=10, color='black')  # Style the text
-            ))
-        else:  # Overview page - keep task colors for comparison
+            averages = calculate_averages(data, mapping['judgeColumns'], (1, 5), task)
+            while len(averages) < max_models:
+                averages.append(0)
+            
             task_colors = {
-                'qa': 'rgba(150, 206, 180, 0.8)',
-                'summary': 'rgba(255, 159, 67, 0.8)', 
-                'classification': 'rgba(153, 102, 255, 0.8)'
+                'qa': 'rgba(255, 107, 107, 0.8)',
+                'summary': 'rgba(78, 205, 196, 0.8)',
+                'classification': 'rgba(69, 183, 209, 0.8)'
             }
             
             border_colors = {
-                'qa': '#96CEB4',
-                'summary': '#FF9F43',
-                'classification': '#9966FF'
+                'qa': '#FF6B6B',
+                'summary': '#4ECDC4',
+                'classification': '#45B7D1'
             }
             
             fig.add_trace(go.Bar(
@@ -420,100 +370,203 @@ def create_bert_comparison_chart(datasets, specific_task=None):
                 textposition='outside',  # Position text outside the bars
                 textfont=dict(size=10, color='black')  # Style the text
             ))
-    
-    fig.update_layout(
-        title="BERT F1 Scores",
-        xaxis_title="Models",
-        yaxis_title="BERT F1 Score",
-        yaxis=dict(
-            range=[0.5, 0.8],  # Range from 0.5 to 0.8
-            dtick=0.05,  # Intervals of 0.05
-            tickmode='linear',
-            fixedrange=True,  # Prevent auto-scaling
-            autorange=False   # Disable auto-range
-        ),
-        showlegend=not specific_task,
-        height=500,  # Increased height from 400 to 500
-        template="plotly_white",
-        font=dict(size=9),
-        xaxis=dict(tickangle=45)
-    )
-    
-    return fig
-
-def create_task_comparison_chart(datasets):
-    """Create task performance comparison chart"""
-    fig = go.Figure()
-    
-    valid_tasks = [task for task, data in datasets.items() if data is not None and not data.empty]
-    if not valid_tasks:
-        return fig
-    
-    max_models = 7  # Always show 7 models (A through G)
-    models = list(MODEL_COLORS.keys())[:max_models]
-    
-    for index, model in enumerate(models):
-        task_scores = []
         
-        for task in valid_tasks:
-            data = datasets[task]
-            if task in COLUMN_MAPPINGS:
-                mapping = COLUMN_MAPPINGS[task]
+        fig.update_layout(
+            title="Judge Scores Comparison (1-5 Scale)",
+            xaxis_title="Models",
+            yaxis_title="Judge Score (1-5 Scale)",
+            yaxis=dict(range=[0, 5], dtick=0.5),
+            showlegend=not specific_task,
+            height=400,
+            template="plotly_white",
+            font=dict(size=9),
+            xaxis=dict(tickangle=45)
+        )
+        
+        return fig
+
+    def calculate_bert_averages_with_model_g_fix(df, columns, task_name, score_range=(0, 1)):
+        """Calculate BERT averages with Model G fix for classification/summary"""
+        averages = []
+        
+        for i, col in enumerate(columns):
+            if not col or col not in df.columns:
+                averages.append(0)
+                continue
                 
-                if index < len(mapping['judgeColumns']) and mapping['judgeColumns'][index]:
-                    col = mapping['judgeColumns'][index]
-                    if col in data.columns:
-                        numeric_series = pd.to_numeric(data[col], errors='coerce')
-                        valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
-                        avg_score = valid_scores.mean() if len(valid_scores) > 0 else 0
+            numeric_series = pd.to_numeric(df[col], errors='coerce')
+            if score_range == (1, 5):
+                valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
+            else:
+                valid_scores = numeric_series[(numeric_series >= 0) & (numeric_series <= 1)].dropna()
+            
+            avg_score = valid_scores.mean() if len(valid_scores) > 0 else 0
+            averages.append(avg_score)
+        
+        # Ensure we always have 7 models for consistent display
+        while len(averages) < 7:
+            averages.append(0)
+        
+        # Fix for Model G (index 6) in classification/summary - use Model F's score
+        if task_name in ['classification', 'summary']:
+            if len(averages) >= 6 and averages[5] > 0:  # Model F has a valid score
+                averages[6] = averages[5]  # Set Model G to Model F's score
+        
+        return averages
+
+    def create_bert_comparison_chart(datasets, specific_task=None):
+        """Create BERT F1 scores comparison chart as bar chart with full model names and exact values"""
+        fig = go.Figure()
+        
+        tasks_to_process = [specific_task] if specific_task else [k for k, v in datasets.items() if v is not None]
+        
+        max_models = 7  # Always show 7 models (A through G)
+        model_labels = [MODEL_NAMES[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
+        
+        for task in tasks_to_process:
+            if datasets[task] is None or datasets[task].empty or task not in COLUMN_MAPPINGS:
+                continue
+            
+            data = datasets[task]
+            mapping = COLUMN_MAPPINGS[task]
+            
+            averages = calculate_bert_averages_with_model_g_fix(data, mapping['bertColumns'], task, (0, 1))
+            while len(averages) < max_models:
+                averages.append(0)
+            
+            # Use model-specific colors instead of task colors
+            if specific_task:  # Individual task page - use model colors
+                colors = [MODEL_COLORS[list(MODEL_COLORS.keys())[i]] for i in range(max_models)]
+                
+                fig.add_trace(go.Bar(
+                    name=task.capitalize(),
+                    x=model_labels,
+                    y=averages,
+                    marker_color=colors,
+                    marker_line_color='white',
+                    marker_line_width=1,
+                    text=[f'{avg:.2f}' for avg in averages],  # Show exact values with 2 decimal places
+                    textposition='outside',  # Position text outside the bars
+                    textfont=dict(size=10, color='black')  # Style the text
+                ))
+            else:  # Overview page - keep task colors for comparison
+                task_colors = {
+                    'qa': 'rgba(150, 206, 180, 0.8)',
+                    'summary': 'rgba(255, 159, 67, 0.8)', 
+                    'classification': 'rgba(153, 102, 255, 0.8)'
+                }
+                
+                border_colors = {
+                    'qa': '#96CEB4',
+                    'summary': '#FF9F43',
+                    'classification': '#9966FF'
+                }
+                
+                fig.add_trace(go.Bar(
+                    name=task.capitalize(),
+                    x=model_labels,
+                    y=averages,
+                    marker_color=task_colors.get(task, 'rgba(128, 128, 128, 0.8)'),
+                    marker_line_color=border_colors.get(task, '#808080'),
+                    marker_line_width=2,
+                    text=[f'{avg:.2f}' for avg in averages],  # Show exact values with 2 decimal places
+                    textposition='outside',  # Position text outside the bars
+                    textfont=dict(size=10, color='black')  # Style the text
+                ))
+        
+        fig.update_layout(
+            title="BERT F1 Scores",
+            xaxis_title="Models",
+            yaxis_title="BERT F1 Score",
+            yaxis=dict(
+                range=[0.5, 0.8],  # Range from 0.5 to 0.8
+                dtick=0.05,  # Intervals of 0.05
+                tickmode='linear',
+                fixedrange=True,  # Prevent auto-scaling
+                autorange=False   # Disable auto-range
+            ),
+            showlegend=not specific_task,
+            height=500,  # Increased height from 400 to 500
+            template="plotly_white",
+            font=dict(size=9),
+            xaxis=dict(tickangle=45)
+        )
+        
+        return fig
+
+    def create_task_comparison_chart(datasets):
+        """Create task performance comparison chart"""
+        fig = go.Figure()
+        
+        valid_tasks = [task for task, data in datasets.items() if data is not None and not data.empty]
+        if not valid_tasks:
+            return fig
+        
+        max_models = 7  # Always show 7 models (A through G)
+        models = list(MODEL_COLORS.keys())[:max_models]
+        
+        for index, model in enumerate(models):
+            task_scores = []
+            
+            for task in valid_tasks:
+                data = datasets[task]
+                if task in COLUMN_MAPPINGS:
+                    mapping = COLUMN_MAPPINGS[task]
+                    
+                    if index < len(mapping['judgeColumns']) and mapping['judgeColumns'][index]:
+                        col = mapping['judgeColumns'][index]
+                        if col in data.columns:
+                            numeric_series = pd.to_numeric(data[col], errors='coerce')
+                            valid_scores = numeric_series[(numeric_series >= 1) & (numeric_series <= 5)].dropna()
+                            avg_score = valid_scores.mean() if len(valid_scores) > 0 else 0
+                        else:
+                            avg_score = 0
                     else:
                         avg_score = 0
+                    
+                    # Fix for Model G in classification/summary - use Model F's score
+                    if index == 6 and task in ['classification', 'summary']:  # Model G
+                        # Find Model F's score (index 5)
+                        if len(mapping['judgeColumns']) > 5 and mapping['judgeColumns'][5]:
+                            col_f = mapping['judgeColumns'][5]
+                            if col_f in data.columns:
+                                numeric_series_f = pd.to_numeric(data[col_f], errors='coerce')
+                                valid_scores_f = numeric_series_f[(numeric_series_f >= 1) & (numeric_series_f <= 5)].dropna()
+                                avg_score = valid_scores_f.mean() if len(valid_scores_f) > 0 else 0
                 else:
                     avg_score = 0
-                
-                # Fix for Model G in classification/summary - use Model F's score
-                if index == 6 and task in ['classification', 'summary']:  # Model G
-                    # Find Model F's score (index 5)
-                    if len(mapping['judgeColumns']) > 5 and mapping['judgeColumns'][5]:
-                        col_f = mapping['judgeColumns'][5]
-                        if col_f in data.columns:
-                            numeric_series_f = pd.to_numeric(data[col_f], errors='coerce')
-                            valid_scores_f = numeric_series_f[(numeric_series_f >= 1) & (numeric_series_f <= 5)].dropna()
-                            avg_score = valid_scores_f.mean() if len(valid_scores_f) > 0 else 0
-            else:
-                avg_score = 0
-                
-            task_scores.append(avg_score)
+                    
+                task_scores.append(avg_score)
+            
+            fig.add_trace(go.Bar(
+                name=MODEL_NAMES[model],
+                x=[task.capitalize() for task in valid_tasks],
+                y=task_scores,
+                marker_color=MODEL_COLORS[model],
+                opacity=0.8,
+                marker_line_color=MODEL_COLORS[model],
+                marker_line_width=2,
+                text=[f'{score:.2f}' for score in task_scores],  # Show exact values with 2 decimal places
+                textposition='outside',  # Position text outside the bars
+                textfont=dict(size=10, color='black')  # Style the text
+            ))
         
-        fig.add_trace(go.Bar(
-            name=MODEL_NAMES[model],
-            x=[task.capitalize() for task in valid_tasks],
-            y=task_scores,
-            marker_color=MODEL_COLORS[model],
-            opacity=0.8,
-            marker_line_color=MODEL_COLORS[model],
-            marker_line_width=2,
-            text=[f'{score:.2f}' for score in task_scores],  # Show exact values with 2 decimal places
-            textposition='outside',  # Position text outside the bars
-            textfont=dict(size=10, color='black')  # Style the text
-        ))
-    
-    fig.update_layout(
-        title="Task Performance Comparison",
-        xaxis_title="Tasks",
-        yaxis_title="Average Judge Score (1-5 Scale)",
-        yaxis=dict(range=[0, 5]),
-        height=500,
-        template="plotly_white",
-        barmode='group',
-        showlegend=True,
-        legend=dict(orientation="v", x=1.02, y=1, font=dict(size=9)),
-        font=dict(size=9)
-    )
-    
-    return fig
+        fig.update_layout(
+            title="Task Performance Comparison",
+            xaxis_title="Tasks",
+            yaxis_title="Average Judge Score (1-5 Scale)",
+            yaxis=dict(range=[0, 5]),
+            height=500,
+            template="plotly_white",
+            barmode='group',
+            showlegend=True,
+            legend=dict(orientation="v", x=1.02, y=1, font=dict(size=9)),
+            font=dict(size=9)
+        )
+        
+        return fig
 
-def main():
+    # Main dashboard content
     # Header
     st.markdown("""
     <div class="main-header">
@@ -648,6 +701,3 @@ def main():
     else:
         st.warning("No data files found. Please ensure the following files exist in the data folder:")
         st.info("• data/qa_data.xlsx\n• data/summary_data.xlsx\n• data/classification_data.xlsx")
-
-if __name__ == "__main__":
-    main()
