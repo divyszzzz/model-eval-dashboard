@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
+ 
 # Simple authentication
 def check_password():
     """Returns True if the user had the correct password."""
