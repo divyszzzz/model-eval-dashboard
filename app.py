@@ -254,8 +254,8 @@ if check_password():
 
     # Mortgage Terms Data Files
     MORTGAGE_FILES = {
-        'judge': 'mortgage_terms_judge_evaluation.xlsx',
-        'bert': 'mortgage_terms_bertscore_evaluation.xlsx'
+        'judge': 'data/mortgage_terms_judge_evaluation.xlsx',
+        'bert': 'data/mortgage_terms_bertscore_evaluation.xlsx'
     }
 
     @st.cache_data(ttl=300)  # Cache for 5 minutes
